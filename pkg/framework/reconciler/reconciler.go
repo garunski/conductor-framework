@@ -70,10 +70,21 @@ func (r *Reconciler) applyObject(ctx context.Context, obj runtime.Object, resour
 
 	unstructuredObj, ok := obj.(*unstructured.Unstructured)
 	if !ok {
-
+		// Get the GVK from the typed object
+		gvks, _, err := r.scheme.ObjectKinds(obj)
+		if err != nil || len(gvks) == 0 {
+			err := fmt.Errorf("%w: kubernetes convert to unstructured %s: failed to get object kinds: %w", apperrors.ErrKubernetes, resourceKey, err)
+			events.StoreEventSafe(r.eventStore, r.logger, events.Error(resourceKey, "apply", "Failed to apply object", err))
+			return err
+		}
+		
+		// Use the first GVK found and create codec with proper GroupVersion
+		gvk := gvks[0]
+		codec := serializer.NewCodecFactory(r.scheme).LegacyCodec(gvk.GroupVersion())
+		
 		unstructuredObj = &unstructured.Unstructured{}
-
-		data, err := runtime.Encode(serializer.NewCodecFactory(r.scheme).LegacyCodec(schema.GroupVersion{}), obj)
+		
+		data, err := runtime.Encode(codec, obj)
 		if err != nil {
 			err := fmt.Errorf("%w: kubernetes encode object %s: failed to encode object: %w", apperrors.ErrKubernetes, resourceKey, err)
 			events.StoreEventSafe(r.eventStore, r.logger, events.Error(resourceKey, "apply", "Failed to apply object", err))
