@@ -62,8 +62,8 @@ func (h *Handler) Up(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// No services specified, deploy all
-	if err := h.reconciler.DeployAll(ctx); err != nil {
+	// No services specified, deploy all using updated manifests with current namespace from CRD
+	if err := h.reconciler.DeployManifests(ctx, manifests); err != nil {
 		h.logger.Error(err, "failed to deploy all")
 		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "deployment_failed", err.Error(), nil)
 		return
@@ -147,7 +147,17 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			WriteErrorResponse(w, h.logger, http.StatusBadRequest, "no_manifests", "No manifests found for selected services", nil)
 			return
 		}
-		
+	}
+	
+	// Re-render manifests with current parameters before updating
+	updatedManifests, err := h.updateManifestsWithCurrentParameters(ctx, manifests)
+	if err != nil {
+		h.logger.Error(err, "failed to update manifests with current parameters, using existing manifests")
+	} else {
+		manifests = updatedManifests
+	}
+	
+	if len(req.Services) > 0 {
 		if err := h.reconciler.UpdateManifests(ctx, manifests); err != nil {
 			h.logger.Error(err, "failed to update selected services")
 			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "update_failed", err.Error(), nil)
@@ -160,8 +170,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// No services specified, update all
-	if err := h.reconciler.UpdateAll(ctx); err != nil {
+	// No services specified, update all using updated manifests with current namespace from CRD
+	if err := h.reconciler.UpdateManifests(ctx, manifests); err != nil {
 		h.logger.Error(err, "failed to update all")
 		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "update_failed", err.Error(), nil)
 		return

@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"text/template"
 	"time"
 
 	"github.com/go-logr/zapr"
@@ -27,6 +28,7 @@ type Config struct {
 	ManifestFS      embed.FS
 	ManifestRoot    string
 	CustomTemplateFS *embed.FS // Optional custom templates
+	TemplateFuncs   template.FuncMap // Optional custom template functions
 
 	// Storage configuration
 	DataPath string
@@ -131,7 +133,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 
 	logger.Info("Loading embedded manifests with template rendering")
-	manifests, err = manifest.LoadEmbeddedManifests(cfg.ManifestFS, cfg.ManifestRoot, ctx, parameterGetter)
+	manifests, err = manifest.LoadEmbeddedManifests(cfg.ManifestFS, cfg.ManifestRoot, ctx, parameterGetter, cfg.TemplateFuncs)
 	if err != nil {
 		return fmt.Errorf("failed to load embedded manifests: %w", err)
 	}

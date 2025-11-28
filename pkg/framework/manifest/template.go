@@ -6,6 +6,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
+	"github.com/google/uuid"
 	"github.com/garunski/conductor-framework/pkg/framework/crd"
 )
 
@@ -36,8 +38,88 @@ type ResourceListContext struct {
 	CPU    string
 }
 
+// buildTemplateFuncMap builds a complete function map by merging:
+// 1. Existing built-in functions
+// 2. Sprig functions (excluding env/expandenv for security)
+// 3. Custom uuidv5 function
+// 4. User-provided custom functions (highest priority, can override)
+func buildTemplateFuncMap(ctx *TemplateContext, customFuncs template.FuncMap) template.FuncMap {
+	// Start with existing built-in functions
+	funcMap := template.FuncMap{
+		"defaultIfEmpty": func(value, defaultValue string) string {
+			if value == "" {
+				return defaultValue
+			}
+			return value
+		},
+		"prefixName": func(prefix, name string) string {
+			if prefix == "" {
+				return name
+			}
+			return prefix + name
+		},
+		"hasPrefix": func(prefix string) bool {
+			return prefix != ""
+		},
+		"toYAML": func(v interface{}) string {
+			// Simple YAML conversion for maps
+			if m, ok := v.(map[string]string); ok {
+				var parts []string
+				for k, val := range m {
+					parts = append(parts, fmt.Sprintf("%s: %s", k, val))
+				}
+				return strings.Join(parts, "\n")
+			}
+			return ""
+		},
+		"rangeLabels": func() map[string]string {
+			return ctx.Labels
+		},
+		"rangeAnnotations": func() map[string]string {
+			return ctx.Annotations
+		},
+	}
+
+	// Add Sprig functions, but exclude env and expandenv for security
+	sprigFuncs := sprig.FuncMap()
+	delete(sprigFuncs, "env")
+	delete(sprigFuncs, "expandenv")
+	
+	// Merge Sprig functions
+	for k, v := range sprigFuncs {
+		funcMap[k] = v
+	}
+
+	// Add custom uuidv5 function
+	funcMap["uuidv5"] = func(namespaceUUID, name string) string {
+		// Default to DNS namespace UUID if empty
+		if namespaceUUID == "" {
+			namespaceUUID = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+		}
+		
+		nsUUID, err := uuid.Parse(namespaceUUID)
+		if err != nil {
+			// Return empty string on error (could also log, but template functions shouldn't error)
+			return ""
+		}
+		
+		newUUID := uuid.NewSHA1(nsUUID, []byte(name))
+		return newUUID.String()
+	}
+
+	// Merge user-provided custom functions (highest priority, can override)
+	if customFuncs != nil {
+		for k, v := range customFuncs {
+			funcMap[k] = v
+		}
+	}
+
+	return funcMap
+}
+
 // RenderTemplate renders a manifest YAML template with the given parameters
-func RenderTemplate(manifestBytes []byte, serviceName string, params *crd.ParameterSet) ([]byte, error) {
+// If customFuncs is provided, it will be merged with built-in and Sprig functions
+func RenderTemplate(manifestBytes []byte, serviceName string, params *crd.ParameterSet, customFuncs template.FuncMap) ([]byte, error) {
 	if params == nil {
 		params = &crd.ParameterSet{
 			Namespace:  "default",
@@ -96,41 +178,11 @@ func RenderTemplate(manifestBytes []byte, serviceName string, params *crd.Parame
 		ctx.Tolerations = params.Tolerations
 	}
 
-	// Create template with helper functions
-	tmpl, err := template.New("manifest").Funcs(template.FuncMap{
-		"defaultIfEmpty": func(value, defaultValue string) string {
-			if value == "" {
-				return defaultValue
-			}
-			return value
-		},
-		"prefixName": func(prefix, name string) string {
-			if prefix == "" {
-				return name
-			}
-			return prefix + name
-		},
-		"hasPrefix": func(prefix string) bool {
-			return prefix != ""
-		},
-		"toYAML": func(v interface{}) string {
-			// Simple YAML conversion for maps
-			if m, ok := v.(map[string]string); ok {
-				var parts []string
-				for k, val := range m {
-					parts = append(parts, fmt.Sprintf("%s: %s", k, val))
-				}
-				return strings.Join(parts, "\n")
-			}
-			return ""
-		},
-		"rangeLabels": func() map[string]string {
-			return ctx.Labels
-		},
-		"rangeAnnotations": func() map[string]string {
-			return ctx.Annotations
-		},
-	}).Parse(string(manifestBytes))
+	// Build complete function map
+	funcMap := buildTemplateFuncMap(ctx, customFuncs)
+
+	// Create template with merged functions
+	tmpl, err := template.New("manifest").Funcs(funcMap).Parse(string(manifestBytes))
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse template: %w", err)

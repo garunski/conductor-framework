@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/garunski/conductor-framework/pkg/framework/crd"
 	"gopkg.in/yaml.v3"
@@ -17,8 +18,9 @@ type ParameterGetter func(ctx context.Context, serviceName string) (*crd.Paramet
 
 // LoadEmbeddedManifests loads and optionally renders templates for embedded manifests
 // If parameterGetter is nil, manifests are loaded without templating
+// If templateFuncs is nil, default functions (Sprig + built-ins) are used
 // rootPath specifies the root directory path in the embedded filesystem (e.g., "manifests" or "")
-func LoadEmbeddedManifests(files embed.FS, rootPath string, ctx context.Context, parameterGetter ParameterGetter) (map[string][]byte, error) {
+func LoadEmbeddedManifests(files embed.FS, rootPath string, ctx context.Context, parameterGetter ParameterGetter, templateFuncs template.FuncMap) (map[string][]byte, error) {
 	manifests := make(map[string][]byte)
 
 	// Default rootPath to "manifests" if empty for backward compatibility
@@ -64,7 +66,7 @@ func LoadEmbeddedManifests(files embed.FS, rootPath string, ctx context.Context,
 				params = nil
 			}
 
-			rendered, err := RenderTemplate(data, serviceName, params)
+			rendered, err := RenderTemplate(data, serviceName, params, templateFuncs)
 			if err != nil {
 				return fmt.Errorf("failed to render template for %s: %w", path, err)
 			}

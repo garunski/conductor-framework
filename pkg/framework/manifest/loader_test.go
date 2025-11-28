@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"text/template"
 	"testing"
 )
 
@@ -110,7 +111,7 @@ metadata:
 
 func TestLoadEmbeddedManifests(t *testing.T) {
 	ctx := context.Background()
-	manifests, err := LoadEmbeddedManifests(testManifests, "testdata", ctx, nil)
+	manifests, err := LoadEmbeddedManifests(testManifests, "testdata", ctx, nil, nil)
 	if err != nil {
 		t.Fatalf("LoadEmbeddedManifests() error = %v", err)
 	}
@@ -132,7 +133,7 @@ func TestLoadEmbeddedManifests(t *testing.T) {
 func TestLoadEmbeddedManifests_EmptyFS(t *testing.T) {
 	ctx := context.Background()
 	var emptyFS embed.FS
-	manifests, err := LoadEmbeddedManifests(emptyFS, "", ctx, nil)
+	manifests, err := LoadEmbeddedManifests(emptyFS, "", ctx, nil, nil)
 	if err != nil {
 		t.Fatalf("LoadEmbeddedManifests() with empty FS error = %v", err)
 	}
@@ -147,7 +148,7 @@ func TestLoadEmbeddedManifests_EmptyFS(t *testing.T) {
 
 func TestLoadEmbeddedManifests_WithRootPath(t *testing.T) {
 	ctx := context.Background()
-	manifests, err := LoadEmbeddedManifests(testManifests, "testdata", ctx, nil)
+	manifests, err := LoadEmbeddedManifests(testManifests, "testdata", ctx, nil, nil)
 	if err != nil {
 		t.Fatalf("LoadEmbeddedManifests() with rootPath error = %v", err)
 	}
@@ -327,6 +328,40 @@ data:
 				t.Errorf("extractKeyFromYAML() = %v, want %v", key, tt.expected)
 			}
 		})
+	}
+}
+
+func TestLoadEmbeddedManifests_WithFunctions(t *testing.T) {
+	ctx := context.Background()
+	
+	// Create a custom function
+	customFuncs := template.FuncMap{
+		"customTest": func(s string) string {
+			return "custom-" + s
+		},
+	}
+
+	manifests, err := LoadEmbeddedManifests(testManifests, "testdata", ctx, nil, customFuncs)
+	if err != nil {
+		t.Fatalf("LoadEmbeddedManifests() with functions error = %v", err)
+	}
+
+	if len(manifests) == 0 {
+		t.Error("LoadEmbeddedManifests() with functions should load manifests")
+	}
+}
+
+func TestLoadEmbeddedManifests_WithNilFunctions(t *testing.T) {
+	ctx := context.Background()
+	
+	// Test that nil functions work (default Sprig functions should be used)
+	manifests, err := LoadEmbeddedManifests(testManifests, "testdata", ctx, nil, nil)
+	if err != nil {
+		t.Fatalf("LoadEmbeddedManifests() with nil functions error = %v", err)
+	}
+
+	if len(manifests) == 0 {
+		t.Error("LoadEmbeddedManifests() with nil functions should load manifests")
 	}
 }
 
