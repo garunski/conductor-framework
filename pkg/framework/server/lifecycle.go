@@ -11,13 +11,8 @@ import (
 )
 
 func (s *Server) Start(ctx context.Context) error {
-	if s.config.AutoDeploy {
-		s.logger.Info("Auto-deployment enabled, starting periodic reconciliation", "interval", s.config.ReconcileInterval)
-		go s.reconciler.StartPeriodicReconciliation(ctx, s.config.ReconcileInterval)
-	} else {
-		s.logger.Info("Auto-deployment disabled, periodic reconciliation will not run")
-		s.reconciler.SetReady(true)
-	}
+	s.logger.Info("Reconciler ready, manual reconciliation available via API")
+	s.reconciler.SetReady(true)
 
 	go s.startReconciliationHandler(ctx)
 

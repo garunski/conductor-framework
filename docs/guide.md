@@ -77,8 +77,6 @@ cfg := framework.Config{
     ManifestRoot:       "manifests",
     DataPath:           "/data/badger",
     Port:               "8081",
-    ReconcileInterval:  30 * time.Second,
-    AutoDeploy:         false,
     LogRetentionDays:   7,
     LogCleanupInterval: 1 * time.Hour,
     CRDGroup:           "conductor.localmeadow.io",
@@ -94,8 +92,6 @@ All configuration can be overridden via environment variables:
 ```bash
 export VERSION=1.0.0
 export PORT=8081
-export RECONCILE_INTERVAL=30s
-export AUTO_DEPLOY=true
 ```
 
 ## Manifest Management
@@ -245,18 +241,7 @@ curl http://localhost:8081/api/services/health
 
 ## Reconciliation
 
-### Automatic Reconciliation
-
-Enable automatic periodic reconciliation:
-
-```go
-cfg.AutoDeploy = true
-cfg.ReconcileInterval = 30 * time.Second
-```
-
-### Manual Reconciliation
-
-Trigger reconciliation via API:
+Reconciliation is performed manually via API endpoints. The framework does not support automatic periodic reconciliation.
 
 ```bash
 # Reconcile specific resource

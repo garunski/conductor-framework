@@ -79,8 +79,7 @@ func main() {
 
 ### Reconciliation
 
-- Automatic periodic reconciliation
-- Manual reconciliation triggers
+- Manual reconciliation via API endpoints
 - Event tracking for all operations
 - Error handling and retry logic
 
@@ -105,10 +104,6 @@ type Config struct {
     // Server configuration
     Port string
     
-    // Reconciliation configuration
-    ReconcileInterval time.Duration
-    AutoDeploy        bool
-    
     // Logging configuration
     LogRetentionDays  int
     LogCleanupInterval time.Duration
@@ -127,8 +122,6 @@ All configuration can be overridden via environment variables:
 - `VERSION` - Application version (default: "dev")
 - `BADGER_DATA_PATH` - Data storage path (default: "/data/badger")
 - `PORT` - HTTP server port (default: "8081")
-- `RECONCILE_INTERVAL` - Reconciliation interval (default: "30s")
-- `AUTO_DEPLOY` - Enable automatic deployment (default: false)
 - `LOG_RETENTION_DAYS` - Event log retention (default: 7)
 - `LOG_CLEANUP_INTERVAL` - Log cleanup interval (default: "1h")
 

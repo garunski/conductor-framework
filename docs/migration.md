@@ -82,8 +82,6 @@ func main() {
 type Config struct {
     DataPath           string
     Port               string
-    ReconcileInterval  time.Duration
-    AutoDeploy         bool
     LogRetentionDays   int
     LogCleanupInterval time.Duration
     Version            string
@@ -100,8 +98,6 @@ type Config struct {
     ManifestRoot       string
     DataPath           string
     Port               string
-    ReconcileInterval  time.Duration
-    AutoDeploy         bool
     LogRetentionDays   int
     LogCleanupInterval time.Duration
     CRDGroup           string

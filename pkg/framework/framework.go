@@ -34,10 +34,6 @@ type Config struct {
 	// Server configuration
 	Port string
 
-	// Reconciliation configuration
-	ReconcileInterval time.Duration
-	AutoDeploy        bool
-
 	// Logging configuration
 	LogRetentionDays  int
 	LogCleanupInterval time.Duration
@@ -56,8 +52,6 @@ func DefaultConfig() Config {
 		ManifestRoot:       "manifests",
 		DataPath:           getEnvOrDefault("BADGER_DATA_PATH", "/data/badger"),
 		Port:               getEnvOrDefault("PORT", "8081"),
-		ReconcileInterval:  parseDurationOrDefault("RECONCILE_INTERVAL", 30*time.Second),
-		AutoDeploy:         parseBoolOrDefault("AUTO_DEPLOY", false),
 		LogRetentionDays:   parseIntOrDefault("LOG_RETENTION_DAYS", 7),
 		LogCleanupInterval: parseDurationOrDefault("LOG_CLEANUP_INTERVAL", 1*time.Hour),
 		CRDGroup:           crd.DefaultCRDGroup,
@@ -76,9 +70,6 @@ func (c *Config) Validate() error {
 	}
 	if c.Port == "" {
 		return fmt.Errorf("Port cannot be empty")
-	}
-	if c.ReconcileInterval <= 0 {
-		return fmt.Errorf("ReconcileInterval must be positive")
 	}
 	if c.LogRetentionDays < 0 {
 		return fmt.Errorf("LogRetentionDays cannot be negative")
@@ -152,8 +143,6 @@ func Run(ctx context.Context, cfg Config) error {
 		AppVersion:         cfg.AppVersion,
 		DataPath:           cfg.DataPath,
 		Port:               cfg.Port,
-		ReconcileInterval:  cfg.ReconcileInterval,
-		AutoDeploy:         cfg.AutoDeploy,
 		LogRetentionDays:   cfg.LogRetentionDays,
 		LogCleanupInterval: cfg.LogCleanupInterval,
 		CRDGroup:           cfg.CRDGroup,
@@ -200,13 +189,6 @@ func parseDurationOrDefault(key string, defaultValue time.Duration) time.Duratio
 		if d, err := time.ParseDuration(value); err == nil {
 			return d
 		}
-	}
-	return defaultValue
-}
-
-func parseBoolOrDefault(key string, defaultValue bool) bool {
-	if value := os.Getenv(key); value != "" {
-		return value == "true" || value == "1" || value == "yes"
 	}
 	return defaultValue
 }

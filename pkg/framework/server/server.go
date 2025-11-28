@@ -27,8 +27,6 @@ type Config struct {
 	AppVersion         string
 	DataPath           string
 	Port               string
-	ReconcileInterval  time.Duration
-	AutoDeploy         bool
 	LogRetentionDays   int
 	LogCleanupInterval time.Duration
 	CRDGroup           string

@@ -62,18 +62,6 @@ func (b *Builder) WithPort(port string) *Builder {
 	return b
 }
 
-// WithReconcileInterval sets the reconciliation interval.
-func (b *Builder) WithReconcileInterval(interval time.Duration) *Builder {
-	b.config.ReconcileInterval = interval
-	return b
-}
-
-// WithAutoDeploy enables or disables automatic deployment.
-func (b *Builder) WithAutoDeploy(enabled bool) *Builder {
-	b.config.AutoDeploy = enabled
-	return b
-}
-
 // WithLogRetentionDays sets the log retention period in days.
 func (b *Builder) WithLogRetentionDays(days int) *Builder {
 	b.config.LogRetentionDays = days
