@@ -55,10 +55,13 @@ func LoadEmbeddedManifests(files embed.FS, rootPath string, ctx context.Context,
 		serviceName := extractServiceName(path, rootPath)
 
 		// Render template if parameterGetter is provided
+		// If parameterGetter fails, fall back to default parameters
 		if parameterGetter != nil {
 			params, err := parameterGetter(ctx, serviceName)
 			if err != nil {
-				return fmt.Errorf("failed to get parameters for service %s: %w", serviceName, err)
+				// If parameter getter fails (e.g., no Kubernetes connection),
+				// fall back to nil params which will use defaults in RenderTemplate
+				params = nil
 			}
 
 			rendered, err := RenderTemplate(data, serviceName, params)

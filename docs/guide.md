@@ -84,7 +84,6 @@ cfg := framework.Config{
     CRDGroup:           "conductor.localmeadow.io",
     CRDVersion:         "v1alpha1",
     CRDResource:        "deploymentparameters",
-    EnableParameters:   true,
 }
 ```
 
@@ -288,8 +287,9 @@ The framework supports CRDs for parameter management.
 cfg.CRDGroup = "conductor.localmeadow.io"
 cfg.CRDVersion = "v1alpha1"
 cfg.CRDResource = "deploymentparameters"
-cfg.EnableParameters = true
 ```
+
+Note: Parameter support is always enabled. If Kubernetes is unavailable, the framework will use default parameters for template rendering.
 
 ### DeploymentParameters CRD
 

@@ -42,13 +42,11 @@ func (h *Handler) Up(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Re-render manifests with current parameters before deploying
-	if h.parameterClient != nil {
-		updatedManifests, err := h.updateManifestsWithCurrentParameters(ctx, manifests)
-		if err != nil {
-			h.logger.Error(err, "failed to update manifests with current parameters, using existing manifests")
-		} else {
-			manifests = updatedManifests
-		}
+	updatedManifests, err := h.updateManifestsWithCurrentParameters(ctx, manifests)
+	if err != nil {
+		h.logger.Error(err, "failed to update manifests with current parameters, using existing manifests")
+	} else {
+		manifests = updatedManifests
 	}
 	
 	if len(req.Services) > 0 {
@@ -296,10 +294,6 @@ func getServiceInstallationStatus(ctx context.Context, services []string, manife
 // updateManifestsWithCurrentParameters updates manifests with current parameters (especially namespace)
 // This ensures that global defaults are applied when deploying
 func (h *Handler) updateManifestsWithCurrentParameters(ctx context.Context, manifests map[string][]byte) (map[string][]byte, error) {
-	if h.parameterClient == nil {
-		return manifests, nil
-	}
-
 	defaultNamespace := "default"
 	updatedManifests := make(map[string][]byte)
 	

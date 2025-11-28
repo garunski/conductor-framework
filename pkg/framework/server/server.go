@@ -34,7 +34,6 @@ type Config struct {
 	CRDGroup           string
 	CRDVersion         string
 	CRDResource        string
-	EnableParameters   bool
 	CustomTemplateFS   *embed.FS // Optional custom templates
 }
 
@@ -72,42 +71,36 @@ func NewServer(cfg *Config, logger logr.Logger, manifests map[string][]byte) (*S
 		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
 	}
 
-	// Initialize CRD parameter client if enabled
-	var parameterClient *crd.Client
-	if cfg.EnableParameters {
-		parameterClient = crd.NewClient(dynamicClient, logger, cfg.CRDGroup, cfg.CRDVersion, cfg.CRDResource)
-		logger.Info("CRD parameter client initialized", "group", cfg.CRDGroup, "version", cfg.CRDVersion, "resource", cfg.CRDResource)
+	// Always initialize CRD parameter client
+	parameterClient := crd.NewClient(dynamicClient, logger, cfg.CRDGroup, cfg.CRDVersion, cfg.CRDResource)
+	logger.Info("CRD parameter client initialized", "group", cfg.CRDGroup, "version", cfg.CRDVersion, "resource", cfg.CRDResource)
 
-		// Get or create default DeploymentParameters instance
-		defaultNamespace := "default"
-		defaultParams, err := parameterClient.Get(ctx, crd.DefaultName, defaultNamespace)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get default DeploymentParameters: %w", err)
-		}
-
-		if defaultParams == nil {
-			logger.Info("Creating default DeploymentParameters instance")
-			defaultParams = &crd.DeploymentParameters{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      crd.DefaultName,
-					Namespace: defaultNamespace,
+	// Get or create default DeploymentParameters instance
+	defaultNamespace := "default"
+	defaultParams, err := parameterClient.Get(ctx, crd.DefaultName, defaultNamespace)
+	if err != nil {
+		// Log error but continue - parameter client is still available, just can't get/create default instance
+		logger.Error(err, "failed to get default DeploymentParameters, continuing without it")
+	} else if defaultParams == nil {
+		logger.Info("Creating default DeploymentParameters instance")
+		defaultParams = &crd.DeploymentParameters{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      crd.DefaultName,
+				Namespace: defaultNamespace,
+			},
+			Spec: crd.DeploymentParametersSpec{
+				Global: &crd.ParameterSet{
+					Namespace:  "default",
+					NamePrefix: "",
+					Replicas:   int32Ptr(1),
 				},
-				Spec: crd.DeploymentParametersSpec{
-					Global: &crd.ParameterSet{
-						Namespace:  "default",
-						NamePrefix: "",
-						Replicas:   int32Ptr(1),
-					},
-				},
-			}
-			if err := parameterClient.Create(ctx, defaultParams); err != nil {
-				logger.Error(err, "failed to create default DeploymentParameters, continuing without it")
-			} else {
-				logger.Info("Created default DeploymentParameters instance")
-			}
+			},
 		}
-	} else {
-		logger.Info("CRD parameters disabled, skipping parameter client initialization")
+		if err := parameterClient.Create(ctx, defaultParams); err != nil {
+			logger.Error(err, "failed to create default DeploymentParameters, continuing without it")
+		} else {
+			logger.Info("Created default DeploymentParameters instance")
+		}
 	}
 
 	logger.Info("Opening BadgerDB", "path", cfg.DataPath)

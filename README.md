@@ -117,7 +117,6 @@ type Config struct {
     CRDGroup         string
     CRDVersion       string
     CRDResource      string
-    EnableParameters bool
 }
 ```
 

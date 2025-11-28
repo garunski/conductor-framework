@@ -104,12 +104,6 @@ func (b *Builder) WithCRDResource(resource string) *Builder {
 	return b
 }
 
-// WithParameters enables or disables CRD parameter support.
-func (b *Builder) WithParameters(enabled bool) *Builder {
-	b.config.EnableParameters = enabled
-	return b
-}
-
 // Build returns the configured Config and validates it.
 // Returns an error if validation fails.
 func (b *Builder) Build() (framework.Config, error) {

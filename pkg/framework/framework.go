@@ -46,7 +46,6 @@ type Config struct {
 	CRDGroup         string
 	CRDVersion       string
 	CRDResource      string
-	EnableParameters bool
 }
 
 // DefaultConfig returns a Config with default values
@@ -64,7 +63,6 @@ func DefaultConfig() Config {
 		CRDGroup:           crd.DefaultCRDGroup,
 		CRDVersion:         crd.DefaultCRDVersion,
 		CRDResource:        crd.DefaultCRDResource,
-		EnableParameters:   true,
 	}
 }
 
@@ -115,34 +113,34 @@ func Run(ctx context.Context, cfg Config) error {
 	var manifests map[string][]byte
 	var parameterGetter manifest.ParameterGetter
 
-	// If parameters are enabled, create a temporary CRD client for manifest loading
-	if cfg.EnableParameters {
-		logger.Info("Setting up Kubernetes client for manifest loading")
-		kubeConfig, err := reconciler.GetKubernetesConfig()
-		if err != nil {
-			return fmt.Errorf("failed to get Kubernetes config: %w", err)
-		}
-
+	// Always attempt to create parameter client for manifest loading
+	// If Kubernetes is unavailable, fall back to default parameters
+	logger.Info("Setting up Kubernetes client for manifest loading")
+	kubeConfig, err := reconciler.GetKubernetesConfig()
+	if err != nil {
+		logger.Info("Kubernetes config not available, using default parameters for template rendering", "error", err)
+		// Use nil parameterGetter which will use defaults in manifest loader
+		parameterGetter = nil
+	} else {
 		dynamicClient, err := dynamic.NewForConfig(kubeConfig)
 		if err != nil {
-			return fmt.Errorf("failed to create dynamic client: %w", err)
+			logger.Info("Failed to create dynamic client, using default parameters for template rendering", "error", err)
+			// Use nil parameterGetter which will use defaults in manifest loader
+			parameterGetter = nil
+		} else {
+			// Create temporary CRD client for manifest loading
+			parameterClient := crd.NewClient(dynamicClient, logger, cfg.CRDGroup, cfg.CRDVersion, cfg.CRDResource)
+			
+			// Create parameter getter function
+			defaultNamespace := "default"
+			parameterGetter = func(ctx context.Context, serviceName string) (*crd.ParameterSet, error) {
+				return parameterClient.GetMergedParameters(ctx, serviceName, defaultNamespace)
+			}
 		}
-
-		// Create temporary CRD client for manifest loading
-		parameterClient := crd.NewClient(dynamicClient, logger, cfg.CRDGroup, cfg.CRDVersion, cfg.CRDResource)
-		
-		// Create parameter getter function
-		defaultNamespace := "default"
-		parameterGetter = func(ctx context.Context, serviceName string) (*crd.ParameterSet, error) {
-			return parameterClient.GetMergedParameters(ctx, serviceName, defaultNamespace)
-		}
-
-		logger.Info("Loading embedded manifests with template rendering")
-		manifests, err = manifest.LoadEmbeddedManifests(cfg.ManifestFS, cfg.ManifestRoot, ctx, parameterGetter)
-	} else {
-		logger.Info("Loading embedded manifests without template rendering")
-		manifests, err = manifest.LoadEmbeddedManifests(cfg.ManifestFS, cfg.ManifestRoot, ctx, nil)
 	}
+
+	logger.Info("Loading embedded manifests with template rendering")
+	manifests, err = manifest.LoadEmbeddedManifests(cfg.ManifestFS, cfg.ManifestRoot, ctx, parameterGetter)
 	if err != nil {
 		return fmt.Errorf("failed to load embedded manifests: %w", err)
 	}
@@ -161,7 +159,6 @@ func Run(ctx context.Context, cfg Config) error {
 		CRDGroup:           cfg.CRDGroup,
 		CRDVersion:         cfg.CRDVersion,
 		CRDResource:        cfg.CRDResource,
-		EnableParameters:   cfg.EnableParameters,
 		CustomTemplateFS:   cfg.CustomTemplateFS,
 	}
 

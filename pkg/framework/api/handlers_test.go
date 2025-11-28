@@ -14,6 +14,7 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 
+	"github.com/garunski/conductor-framework/pkg/framework/crd"
 	"github.com/garunski/conductor-framework/pkg/framework/database"
 	"github.com/garunski/conductor-framework/pkg/framework/events"
 	"github.com/garunski/conductor-framework/pkg/framework/index"
@@ -40,7 +41,7 @@ func setupTestReconciler(t *testing.T, ready bool) *reconciler.Reconciler {
 	manifestStore := store.NewManifestStore(testDB, idx, logger)
 	eventStore := events.NewStorage(testDB, logger)
 
-	rec, err := reconciler.NewReconciler(clientset, dynamicClient, manifestStore, logger, eventStore)
+	rec, err := reconciler.NewReconciler(clientset, dynamicClient, manifestStore, logger, eventStore, "test-app")
 	if err != nil {
 		t.Fatalf("failed to create reconciler: %v", err)
 	}
@@ -48,27 +49,116 @@ func setupTestReconciler(t *testing.T, ready bool) *reconciler.Reconciler {
 	return rec
 }
 
-func setupTestHandler(t *testing.T) (*Handler, *database.DB) {
-	handler, err := NewTestHandler(t)
-	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+func newTestHandler(t *testing.T, opts ...testHandlerOption) (*Handler, error) {
+	t.Helper()
+	logger := logr.Discard()
+	
+	// Default options
+	cfg := testHandlerConfig{
+		appName:    "test-app",
+		version:    "test-version",
+		logger:     logger,
+		reconcileCh: make(chan string, 100),
 	}
+	
+	// Apply options
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	
+	// Create database if not provided
+	if cfg.db == nil {
+		db, err := database.NewTestDB(t)
+		if err != nil {
+			return nil, err
+		}
+		cfg.db = db
+	}
+	
+	// Create index and store if not provided
+	if cfg.store == nil {
+		idx := index.NewIndex()
+		cfg.store = store.NewManifestStore(cfg.db, idx, logger)
+	}
+	
+	// Create event store if not provided and not explicitly set to nil
+	if cfg.eventStore == nil && !cfg.eventStoreSet {
+		cfg.eventStore = events.NewStorage(cfg.db, logger)
+	}
+	
+	// Create parameter client if not provided
+	if cfg.parameterClient == nil {
+		scheme := runtime.NewScheme()
+		corev1.AddToScheme(scheme)
+		appsv1.AddToScheme(scheme)
+		dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
+		cfg.parameterClient = crd.NewClient(dynamicClient, logger, "conductor.localmeadow.io", "v1alpha1", "deploymentparameters")
+	}
+	
+	return NewHandler(cfg.store, cfg.eventStore, cfg.logger, cfg.reconcileCh, cfg.reconciler, cfg.appName, cfg.version, cfg.parameterClient, nil)
+}
 
+type testHandlerConfig struct {
+	appName         string
+	version         string
+	logger          logr.Logger
+	reconcileCh     chan string
+	reconciler      *reconciler.Reconciler
+	db              *database.DB
+	store           *store.ManifestStore
+	eventStore      *events.Storage
+	eventStoreSet   bool // Track if eventStore was explicitly set (even if nil)
+	parameterClient *crd.Client
+}
+
+type testHandlerOption func(*testHandlerConfig)
+
+func WithTestReconciler(rec *reconciler.Reconciler) testHandlerOption {
+	return func(cfg *testHandlerConfig) {
+		cfg.reconciler = rec
+	}
+}
+
+func WithTestEventStore(eventStore *events.Storage) testHandlerOption {
+	return func(cfg *testHandlerConfig) {
+		cfg.eventStore = eventStore
+		cfg.eventStoreSet = true
+	}
+}
+
+func WithNilReconciler() testHandlerOption {
+	return func(cfg *testHandlerConfig) {
+		cfg.reconciler = nil
+	}
+}
+
+func WithNilEventStore() testHandlerOption {
+	return func(cfg *testHandlerConfig) {
+		cfg.eventStore = nil
+		cfg.eventStoreSet = true
+	}
+}
+
+func setupTestHandler(t *testing.T) (*Handler, *database.DB) {
 	db, err := database.NewTestDB(t)
 	if err != nil {
 		t.Fatalf("NewTestDB() error = %v", err)
+	}
+	handler, err := newTestHandler(t)
+	if err != nil {
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 	return handler, db
 }
 
 func setupTestHandlerWithReconciler(t *testing.T, rec *reconciler.Reconciler) (*Handler, *database.DB) {
-	handler, err := NewTestHandler(t, WithTestReconciler(rec))
-	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
-	}
 	db, err := database.NewTestDB(t)
 	if err != nil {
 		t.Fatalf("NewTestDB() error = %v", err)
+	}
+	handler, err := newTestHandler(t, WithTestReconciler(rec))
+	if err != nil {
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 	return handler, db
 }
@@ -79,9 +169,9 @@ func setupTestHandlerWithEventStore(t *testing.T) (*Handler, *database.DB, *even
 		t.Fatalf("NewTestDB() error = %v", err)
 	}
 	eventStore := events.NewStorage(db, logr.Discard())
-	handler, err := NewTestHandler(t, WithTestEventStore(eventStore))
+	handler, err := newTestHandler(t, WithTestEventStore(eventStore))
 	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 	return handler, db, eventStore
 }
@@ -100,9 +190,9 @@ metadata:
 }
 
 func TestHealthz(t *testing.T) {
-	handler, err := NewTestHandler(t)
+	handler, err := newTestHandler(t)
 	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 
 	req := httptest.NewRequest("GET", "/healthz", nil)
@@ -130,9 +220,9 @@ func TestHealthz(t *testing.T) {
 
 func TestReadyz_AllHealthy(t *testing.T) {
 	rec := setupTestReconciler(t, true)
-	handler, err := NewTestHandler(t, WithTestReconciler(rec))
+	handler, err := newTestHandler(t, WithTestReconciler(rec))
 	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 
 	req := httptest.NewRequest("GET", "/readyz", nil)
@@ -164,9 +254,9 @@ func TestReadyz_AllHealthy(t *testing.T) {
 
 func TestReadyz_ManagerNotReady(t *testing.T) {
 	rec := setupTestReconciler(t, false)
-	handler, err := NewTestHandler(t, WithTestReconciler(rec))
+	handler, err := newTestHandler(t, WithTestReconciler(rec))
 	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 
 	req := httptest.NewRequest("GET", "/readyz", nil)
@@ -193,9 +283,9 @@ func TestReadyz_ManagerNotReady(t *testing.T) {
 }
 
 func TestGetManifest_NotFound(t *testing.T) {
-	handler, err := NewTestHandler(t)
+	handler, err := newTestHandler(t)
 	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 
 	router := handler.SetupRoutes()
@@ -219,9 +309,9 @@ func TestGetManifest_NotFound(t *testing.T) {
 }
 
 func TestServiceDetails_InvalidNamespace(t *testing.T) {
-	handler, err := NewTestHandler(t)
+	handler, err := newTestHandler(t)
 	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 
 	router := handler.SetupRoutes()
@@ -245,9 +335,9 @@ func TestServiceDetails_InvalidNamespace(t *testing.T) {
 }
 
 func TestCORSHeaders(t *testing.T) {
-	handler, err := NewTestHandler(t)
+	handler, err := newTestHandler(t)
 	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 
 	router := handler.SetupRoutes()
@@ -267,9 +357,9 @@ func TestCORSHeaders(t *testing.T) {
 }
 
 func TestCORSPreflight(t *testing.T) {
-	handler, err := NewTestHandler(t)
+	handler, err := newTestHandler(t)
 	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 
 	router := handler.SetupRoutes()
@@ -291,9 +381,9 @@ func TestReadyz_DatabaseUnhealthy(t *testing.T) {
 
 func TestReadyz_EventStoreUnavailable(t *testing.T) {
 	rec := setupTestReconciler(t, true)
-	handler, err := NewTestHandler(t, WithTestReconciler(rec), WithNilEventStore())
+	handler, err := newTestHandler(t, WithTestReconciler(rec), WithNilEventStore())
 	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 
 	req := httptest.NewRequest("GET", "/readyz", nil)
@@ -316,9 +406,9 @@ func TestReadyz_EventStoreUnavailable(t *testing.T) {
 }
 
 func TestReadyz_NoManager(t *testing.T) {
-	handler, err := NewTestHandler(t, WithNilReconciler())
+	handler, err := newTestHandler(t, WithNilReconciler())
 	if err != nil {
-		t.Fatalf("NewTestHandler() error = %v", err)
+		t.Fatalf("newTestHandler() error = %v", err)
 	}
 
 	req := httptest.NewRequest("GET", "/readyz", nil)

@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Guestbook Conductor: Build",
+      "type": "shell",
+      "command": "./deploy/build.sh",
+      "options": {
+        "cwd": "${workspaceFolder}/examples/guestbook-conductor"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Guestbook Conductor: Up",
+      "type": "shell",
+      "command": "./deploy/up.sh",
+      "options": {
+        "cwd": "${workspaceFolder}/examples/guestbook-conductor"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Guestbook Conductor: Down",
+      "type": "shell",
+      "command": "./deploy/down.sh",
+      "options": {
+        "cwd": "${workspaceFolder}/examples/guestbook-conductor"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Guestbook Conductor: Run Local",
+      "type": "shell",
+      "command": "export BADGER_DATA_PATH=./data && mkdir -p ./data && go run main.go",
+      "options": {
+        "cwd": "${workspaceFolder}/examples/guestbook-conductor"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}
