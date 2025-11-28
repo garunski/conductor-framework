@@ -604,6 +604,16 @@
             if (!current[key]) current[key] = {};
             return current[key];
         }, obj);
+        
+        // Convert numeric fields to numbers
+        if (lastKey === 'replicas' && value !== '') {
+            const numValue = parseInt(value, 10);
+            if (!isNaN(numValue)) {
+                parent[lastKey] = numValue;
+                return;
+            }
+        }
+        
         parent[lastKey] = value;
     }
     
