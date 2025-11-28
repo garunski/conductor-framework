@@ -1,0 +1,273 @@
+{{define "deployments"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deployments - {{.AppName}}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    {{template "styles" .}}
+</head>
+<body class="d-flex vh-100 overflow-hidden">
+    <div class="d-flex flex-column flex-shrink-0" style="width: 256px;">
+        {{template "sidebar" .}}
+    </div>
+    <main class="flex-grow-1 overflow-y-auto">
+        <div class="container-fluid p-4">
+            {{template "deployment-parameters" .}}
+            {{template "deployment-controls" .}}
+        </div>
+    </main>
+    {{template "scripts-core" .}}
+    {{template "theme-switcher" .}}
+    
+    <!-- Confirmation Modal -->
+    <div class="modal fade" id="confirm-modal" tabindex="-1" aria-labelledby="confirm-modal-label" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content custom-modal">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirm-modal-label">Confirm Action</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirm-modal-message"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="confirm-modal-cancel" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn" id="confirm-modal-confirm">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Helper function to get selected services
+        function getSelectedServices() {
+            const checkboxes = document.querySelectorAll('.service-checkbox:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        // Update selection count
+        function updateSelectionCount() {
+            const selected = getSelectedServices().length;
+            const total = document.querySelectorAll('.service-checkbox').length;
+            const countEl = document.getElementById('selected-count');
+            const totalEl = document.getElementById('total-count');
+            if (countEl) countEl.textContent = selected;
+            if (totalEl) totalEl.textContent = total;
+        }
+
+        // Select All / Deselect All functionality
+        const btnSelectAll = document.getElementById('btn-select-all');
+        const btnDeselectAll = document.getElementById('btn-deselect-all');
+
+        if (btnSelectAll) {
+            btnSelectAll.addEventListener('click', function() {
+                document.querySelectorAll('.service-checkbox').forEach(cb => {
+                    cb.checked = true;
+                });
+                updateSelectionCount();
+            });
+        }
+
+        if (btnDeselectAll) {
+            btnDeselectAll.addEventListener('click', function() {
+                document.querySelectorAll('.service-checkbox').forEach(cb => {
+                    cb.checked = false;
+                });
+                updateSelectionCount();
+            });
+        }
+
+        // Update count and card styling when checkboxes change
+        document.querySelectorAll('.service-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                updateSelectionCount();
+                const card = this.closest('.service-card');
+                if (this.checked) {
+                    card.classList.add('service-card-checked');
+                } else {
+                    card.classList.remove('service-card-checked');
+                }
+            });
+        });
+
+        // Initialize count and card styling on page load
+        updateSelectionCount();
+        document.querySelectorAll('.service-checkbox:checked').forEach(cb => {
+            const card = cb.closest('.service-card');
+            if (card) card.classList.add('service-card-checked');
+        });
+
+        // Refresh button functionality
+        const refreshBtn = document.getElementById('btn-refresh-status');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                fetch('/api/installation-status')
+                    .then(res => res.json())
+                    .then(data => {
+                        const installationStatus = data.installationStatus || {};
+                        document.querySelectorAll('.service-card').forEach(card => {
+                            const checkbox = card.querySelector('.service-checkbox');
+                            if (!checkbox) return;
+                            
+                            const serviceName = checkbox.value;
+                            const isInstalled = installationStatus[serviceName] || false;
+                            
+                            if (isInstalled) {
+                                card.classList.remove('service-card-not-installed');
+                                card.classList.add('service-card-installed');
+                            } else {
+                                card.classList.remove('service-card-installed');
+                                card.classList.add('service-card-not-installed');
+                            }
+                            
+                            const statusDiv = card.querySelector('.service-card-status');
+                            if (statusDiv) {
+                                if (isInstalled) {
+                                    statusDiv.innerHTML = `
+                                        <span class="status-indicator status-installed"></span>
+                                        <span class="badge bg-success">Installed</span>
+                                    `;
+                                } else {
+                                    statusDiv.innerHTML = `
+                                        <span class="status-indicator status-not-installed"></span>
+                                        <span class="badge bg-secondary">Not Installed</span>
+                                    `;
+                                }
+                            }
+                        });
+                    })
+                    .catch(err => {
+                        console.error('Failed to refresh status:', err);
+                    });
+            });
+        }
+
+        const btnUp = document.getElementById('btn-up');
+        const btnUpdate = document.getElementById('btn-update');
+        const btnDown = document.getElementById('btn-down');
+
+        if (btnUp) {
+            btnUp.addEventListener('click', async function() {
+                const button = this;
+                const selectedServices = getSelectedServices();
+                
+                if (selectedServices.length === 0) {
+                    showStatus('Please select at least one service to deploy', 'error');
+                    return;
+                }
+                
+                setButtonLoading(button, true);
+                
+                try {
+                    const response = await fetch('/api/up', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            services: selectedServices
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        showStatus(data.message, 'success');
+                    } else {
+                        showStatus('Error: ' + (data.error || 'Unknown error'), 'error');
+                    }
+                } catch (error) {
+                    showStatus('Error: ' + error.message, 'error');
+                } finally {
+                    setButtonLoading(button, false);
+                }
+            });
+        }
+
+        if (btnUpdate) {
+            btnUpdate.addEventListener('click', async function() {
+                const button = this;
+                const selectedServices = getSelectedServices();
+                
+                if (selectedServices.length === 0) {
+                    showStatus('Please select at least one service to update', 'error');
+                    return;
+                }
+                
+                setButtonLoading(button, true);
+                
+                try {
+                    const response = await fetch('/api/update', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            services: selectedServices
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        showStatus(data.message, 'success');
+                    } else {
+                        showStatus('Error: ' + (data.error || 'Unknown error'), 'error');
+                    }
+                } catch (error) {
+                    showStatus('Error: ' + error.message, 'error');
+                } finally {
+                    setButtonLoading(button, false);
+                }
+            });
+        }
+
+        if (btnDown) {
+            btnDown.addEventListener('click', async function() {
+                const button = this;
+                const selectedServices = getSelectedServices();
+                
+                if (selectedServices.length === 0) {
+                    showStatus('Please select at least one service to delete', 'error');
+                    return;
+                }
+                
+                showConfirmModal(
+                    `Are you sure you want to delete ${selectedServices.length} selected service(s)? This action cannot be undone.`,
+                    async function() {
+                        setButtonLoading(button, true);
+                
+                        try {
+                            const response = await fetch('/api/down', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    services: selectedServices
+                                })
+                            });
+                            
+                            const data = await response.json();
+                            
+                            if (response.ok) {
+                                showStatus(data.message, 'info');
+                            } else {
+                                showStatus('Error: ' + (data.error || 'Unknown error'), 'error');
+                            }
+                        } catch (error) {
+                            showStatus('Error: ' + error.message, 'error');
+                        } finally {
+                            setButtonLoading(button, false);
+                        }
+                    }
+                );
+            });
+        }
+    </script>
+</body>
+</html>
+{{end}}

@@ -1,0 +1,44 @@
+{{define "service-health"}}
+<div id="health" class="mb-4">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2>Services</h2>
+                        <p class="card-description mb-0">Monitor the health of your deployed services in real-time. Click on a service to view details.</p>
+                    </div>
+                    <button id="btn-refresh-status" class="btn btn-sm">
+                    REFRESH
+                    </button>
+                </div>
+            </div>
+        <div class="card-body">
+            <div class="row g-3 mb-3" id="health-status">
+                {{range .Services}}
+                {{$isInstalled := index $.InstallationStatus .}}
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="service-card p-3 d-flex flex-column position-relative {{if $isInstalled}}service-card-installed{{else}}service-card-not-installed{{end}}" onclick="showServiceDetails('{{.}}', 'default')" style="cursor: pointer;">
+                    <span class="status-indicator {{if $isInstalled}}status-installed{{else}}status-not-installed{{end}}" id="status-indicator-{{.}}"></span>
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="service-name">{{.}}</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mt-auto pt-2 border-top">
+                        {{if $isInstalled}}
+                        <span class="badge bg-success" id="status-badge-{{.}}">Installed</span>
+                        {{else}}
+                        <span class="badge bg-secondary" id="status-badge-{{.}}">Not Installed</span>
+                        {{end}}
+                    </div>
+                    <div class="service-card-health small text-muted mt-2 pt-2 border-top" id="health-info-{{.}}" style="display: none;">
+                    </div>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+            
+            <p class="small text-muted mt-3" id="last-checked"></p>
+        </div>
+    </div>
+</div>
+{{end}}
+

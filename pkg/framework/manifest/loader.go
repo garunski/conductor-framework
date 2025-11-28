@@ -1,0 +1,143 @@
+package manifest
+
+import (
+	"context"
+	"embed"
+	"fmt"
+	"io/fs"
+	"path/filepath"
+	"strings"
+
+	"github.com/garunski/conductor-framework/pkg/framework/crd"
+	"gopkg.in/yaml.v3"
+)
+
+// ParameterGetter is a function type that retrieves parameters for a service
+type ParameterGetter func(ctx context.Context, serviceName string) (*crd.ParameterSet, error)
+
+// LoadEmbeddedManifests loads and optionally renders templates for embedded manifests
+// If parameterGetter is nil, manifests are loaded without templating
+// rootPath specifies the root directory path in the embedded filesystem (e.g., "manifests" or "")
+func LoadEmbeddedManifests(files embed.FS, rootPath string, ctx context.Context, parameterGetter ParameterGetter) (map[string][]byte, error) {
+	manifests := make(map[string][]byte)
+
+	// Default rootPath to "manifests" if empty for backward compatibility
+	if rootPath == "" {
+		rootPath = "manifests"
+	}
+
+	// Check if rootPath exists in the filesystem
+	_, err := fs.Stat(files, rootPath)
+	if err != nil {
+		// If rootPath doesn't exist, return empty map (no manifests to load)
+		return manifests, nil
+	}
+
+	err = fs.WalkDir(files, rootPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		if !strings.HasSuffix(path, ".yaml") && !strings.HasSuffix(path, ".yml") {
+			return nil
+		}
+
+		data, err := files.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read %s: %w", path, err)
+		}
+
+		// Extract service name from path using rootPath
+		serviceName := extractServiceName(path, rootPath)
+
+		// Render template if parameterGetter is provided
+		if parameterGetter != nil {
+			params, err := parameterGetter(ctx, serviceName)
+			if err != nil {
+				return fmt.Errorf("failed to get parameters for service %s: %w", serviceName, err)
+			}
+
+			rendered, err := RenderTemplate(data, serviceName, params)
+			if err != nil {
+				return fmt.Errorf("failed to render template for %s: %w", path, err)
+			}
+			data = rendered
+		}
+
+		key, err := extractKeyFromYAML(data)
+		if err != nil {
+			return fmt.Errorf("failed to extract key from %s: %w (file may be missing required Kubernetes fields)", path, err)
+		}
+
+		manifests[key] = data
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk embedded manifests: %w", err)
+	}
+
+	return manifests, nil
+}
+
+// extractServiceName extracts the service name from a manifest file path
+// e.g., "manifests/redis/deployment.yaml" with rootPath "manifests" -> "redis"
+func extractServiceName(path string, rootPath string) string {
+	// Remove leading rootPath if present
+	path = strings.TrimPrefix(path, rootPath+"/")
+	path = strings.TrimPrefix(path, "./"+rootPath+"/")
+	path = strings.TrimPrefix(path, rootPath)
+	path = strings.TrimPrefix(path, "./")
+
+	// Get the first directory component
+	parts := strings.Split(path, string(filepath.Separator))
+	if len(parts) > 0 && parts[0] != "" {
+		// If the first part is a filename (has extension), return default
+		if strings.Contains(parts[0], ".") {
+			return "default"
+		}
+		return parts[0]
+	}
+
+	// Fallback: try to extract from path
+	dir := filepath.Dir(path)
+	if dir != "." && dir != "" && dir != rootPath {
+		return filepath.Base(dir)
+	}
+
+	return "default"
+}
+
+func extractKeyFromYAML(yamlData []byte) (string, error) {
+	var obj map[string]interface{}
+	if err := yaml.Unmarshal(yamlData, &obj); err != nil {
+		return "", fmt.Errorf("failed to parse YAML: %w", err)
+	}
+
+	metadata, ok := obj["metadata"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("missing metadata in YAML")
+	}
+
+	name, ok := metadata["name"].(string)
+	if !ok {
+		return "", fmt.Errorf("missing metadata.name in YAML")
+	}
+
+	namespace := "default"
+	if ns, ok := metadata["namespace"].(string); ok && ns != "" {
+		namespace = ns
+	}
+
+	kind, ok := obj["kind"].(string)
+	if !ok {
+		return "", fmt.Errorf("missing kind in YAML")
+	}
+
+	return fmt.Sprintf("%s/%s/%s", namespace, kind, name), nil
+}
+

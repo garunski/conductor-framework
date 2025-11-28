@@ -1,0 +1,32 @@
+{{define "sidebar"}}
+<aside class="d-flex flex-column h-100" style="background: var(--sidebar); border-right: 4px solid var(--accent);">
+    <div class="p-3 border-bottom flex-shrink-0" style="border-width: 4px !important; border-color: var(--accent) !important;">
+        <h2 class="fs-2 fw-bolder mb-0" style="color: var(--accent)">
+            {{.AppName}}
+        </h2>
+        {{if .AppVersion}}
+        <p class="small fw-bold mb-0 text-muted">
+            v{{.AppVersion}}
+        </p>
+        {{end}}
+    </div>
+    <nav class="flex-grow-1 overflow-y-auto">
+        <a href="/" class="nav-link">
+            Services
+        </a>
+        <a href="/deployments" class="nav-link">
+            Deployments
+        </a>
+        <a href="/logs" class="nav-link">
+            Logs
+        </a>
+    </nav>
+    <div class="p-2 border-top flex-shrink-0" style="border-color: var(--accent3);">
+        <button id="theme-switcher" class="btn-secondary w-100 d-flex align-items-center justify-content-center gap-1">
+            <span id="theme-icon">🌓</span>
+            <span id="theme-text">System</span>
+        </button>
+    </div>
+</aside>
+{{end}}
+

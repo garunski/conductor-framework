@@ -1,0 +1,230 @@
+{{define "service-health-page"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Services - {{.AppName}}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    {{template "styles" .}}
+</head>
+<body class="d-flex vh-100 overflow-hidden">
+    <div class="d-flex flex-column flex-shrink-0" style="width: 256px;">
+        {{template "sidebar" .}}
+    </div>
+    <main class="flex-grow-1 overflow-y-auto">
+        <div class="container-fluid p-4">
+            {{template "cluster-requirements" .}}
+            {{template "service-health" .}}
+            {{template "service-details" .}}
+        </div>
+    </main>
+    {{template "scripts-core" .}}
+    {{template "theme-switcher" .}}
+    <script>
+        function renderServices(services, healthMap) {
+            // Services are already rendered in the template, just update health status
+            if (!services || services.length === 0) {
+                return;
+            }
+
+            for (const service of services) {
+                const key = `default:${service.name}`;
+                const health = healthMap ? healthMap.get(key) : null;
+                
+                const indicatorEl = document.getElementById(`status-indicator-${service.name}`);
+                const badgeEl = document.getElementById(`status-badge-${service.name}`);
+                const healthInfoEl = document.getElementById(`health-info-${service.name}`);
+                
+                if (!indicatorEl || !badgeEl) continue;
+                
+                // Update status based on health
+                if (health) {
+                    const statusClass = health.status || 'unknown';
+                    let statusText, badgeClass;
+                    
+                    if (statusClass === 'healthy') {
+                        statusText = 'Healthy';
+                        badgeClass = 'bg-success';
+                        indicatorEl.className = 'status-indicator status-installed';
+                    } else if (statusClass === 'unhealthy') {
+                        statusText = 'Unhealthy';
+                        badgeClass = 'bg-danger';
+                        indicatorEl.className = 'status-indicator';
+                        indicatorEl.style.background = 'var(--color-error)';
+                        indicatorEl.style.borderColor = 'var(--color-error)';
+                    } else {
+                        statusText = 'Unknown';
+                        badgeClass = 'bg-secondary';
+                        indicatorEl.className = 'status-indicator status-not-installed';
+                    }
+                    
+                    badgeEl.textContent = statusText;
+                    badgeEl.className = `badge ${badgeClass}`;
+                    
+                    // Show health info
+                    if (healthInfoEl) {
+                        const endpoint = health.endpoint ? ` • ${escapeHtml(health.endpoint)}` : '';
+                        const lastChecked = health.lastChecked ? new Date(health.lastChecked).toLocaleTimeString() : '';
+                        healthInfoEl.innerHTML = `${escapeHtml(service.name)}:${health.port || ''}${endpoint}${lastChecked ? ` • ${lastChecked}` : ''}`;
+                        healthInfoEl.style.display = 'block';
+                    }
+                }
+            }
+        }
+
+        function loadServices() {
+            // Services are already rendered in the template, just fetch and update health status
+            fetch('/api/services/health')
+                .then(res => res.json())
+                .then(healthData => {
+                    // Create a map of health status by service key (namespace:name)
+                    const healthMap = new Map();
+                    if (healthData.services) {
+                        for (const health of healthData.services) {
+                            const key = `${health.namespace}:${health.name}`;
+                            healthMap.set(key, health);
+                        }
+                    }
+                    
+                    // Get service names from the rendered cards
+                    const serviceCards = document.querySelectorAll('.service-card');
+                    const servicesList = Array.from(serviceCards).map(card => {
+                        const nameEl = card.querySelector('.service-name');
+                        return nameEl ? nameEl.textContent.trim() : null;
+                    }).filter(name => name);
+                    
+                    // Update services with health status
+                    renderServices(servicesList, healthMap);
+
+                    const lastCheckedEl = document.getElementById('last-checked');
+                    if (lastCheckedEl && healthData.services && healthData.services.length > 0) {
+                        const lastChecked = new Date(healthData.services[0].lastChecked).toLocaleString();
+                        lastCheckedEl.textContent = `Last checked: ${lastChecked}`;
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to load health status:', err);
+                });
+        }
+
+        const refreshBtn = document.getElementById('btn-refresh-status');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                loadServices();
+            });
+        }
+
+        function loadClusterRequirements() {
+            const statusDiv = document.getElementById('requirements-status');
+            if (!statusDiv) return;
+
+            fetch('/api/cluster/requirements')
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (!data.requirements || data.requirements.length === 0) {
+                        statusDiv.innerHTML = '<p class="fst-italic text-center py-3 text-muted">No requirements to check</p>';
+                        return;
+                    }
+
+                    // Overall status indicator - compact
+                    const overallClass = data.overall === 'pass' ? 'pass' : data.overall === 'fail' ? 'fail' : 'warning';
+                    const overallText = data.overall === 'pass' ? 'All requirements met' : data.overall === 'fail' ? 'Requirements not met' : 'Warnings detected';
+                    
+                    let html = `<div class="requirements-overall ${overallClass} d-inline-flex align-items-center gap-2 p-2 mb-3">
+                        <span>${overallText}</span>
+                    </div>`;
+
+                    html += '<div class="row g-3">';
+                    for (const req of data.requirements) {
+                        const statusClass = req.status === 'pass' ? 'pass' : req.status === 'fail' ? 'fail' : 'warning';
+                        
+                        html += `
+                            <div class="col-md-6 col-lg-4">
+                                <div class="requirement-badge ${statusClass} p-3">
+                                    <div class="fw-bold small mb-1">${escapeHtml(req.name)}</div>
+                                    <div class="small text-muted">${escapeHtml(req.message || req.description)}</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    html += '</div>';
+
+                    statusDiv.innerHTML = html;
+                })
+                .catch(err => {
+                    console.error('Failed to load cluster requirements:', err);
+                    const statusDiv = document.getElementById('requirements-status');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = '<p class="p-3 border border-2 border-error color-error">Failed to load cluster requirements: ' + escapeHtml(err.message) + '</p>';
+                    }
+                });
+        }
+
+        const refreshRequirementsBtn = document.getElementById('btn-refresh-requirements');
+        if (refreshRequirementsBtn) {
+            refreshRequirementsBtn.addEventListener('click', function() {
+                loadClusterRequirements();
+            });
+        }
+
+        loadClusterRequirements();
+        loadServices();
+        setInterval(loadServices, 30000);
+
+        function showServiceDetails(serviceName, namespace) {
+            const modal = document.getElementById('service-details-modal');
+            const loading = document.getElementById('service-details-loading');
+            const info = document.getElementById('service-details-info');
+            const nameEl = document.getElementById('service-details-name');
+            const envEl = document.getElementById('service-details-env');
+
+            if (!modal || !loading || !info || !nameEl || !envEl) return;
+
+            const bsModal = new bootstrap.Modal(modal);
+            nameEl.textContent = serviceName;
+            loading.style.display = 'block';
+            info.style.display = 'none';
+            bsModal.show();
+
+            fetch(`/api/service/${namespace}/${serviceName}`)
+                .then(res => res.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    info.style.display = 'block';
+
+                    // Display environment variables
+                    if (data.env && data.env.length > 0) {
+                        let envHtml = '';
+                        for (const env of data.env) {
+                            const source = env.source || 'direct';
+                            envHtml += `
+                                <div class="service-details-env-item d-flex align-items-center p-2">
+                                    <div class="fw-bold font-monospace" style="min-width: 200px;">${escapeHtml(env.name)}</div>
+                                    <div class="font-monospace flex-grow-1">${escapeHtml(env.value || '[from ' + source + ']')}</div>
+                                    ${env.source ? `<div class="small text-muted fst-italic ms-3">${escapeHtml(env.source)}</div>` : ''}
+                                </div>
+                            `;
+                        }
+                        envEl.innerHTML = envHtml;
+                    } else {
+                        envEl.innerHTML = '<p class="text-muted">No environment variables found</p>';
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to load service details:', err);
+                    loading.style.display = 'none';
+                    info.style.display = 'block';
+                    envEl.innerHTML = '<p class="color-error">Failed to load service details</p>';
+                });
+        }
+    </script>
+</body>
+</html>
+{{end}}

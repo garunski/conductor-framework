@@ -1,0 +1,83 @@
+{{define "theme-switcher"}}
+<script>
+    // Theme switching functionality
+    (function() {
+        const THEME_STORAGE_KEY = 'localmeadow-theme';
+        const themes = ['system', 'light', 'dark'];
+        let currentThemeIndex = 0;
+
+        function getSystemTheme() {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        function applyTheme(theme) {
+            const html = document.documentElement;
+            if (theme === 'system') {
+                const systemTheme = getSystemTheme();
+                html.setAttribute('data-bs-theme', systemTheme);
+            } else {
+                html.setAttribute('data-bs-theme', theme);
+            }
+        }
+
+        function updateThemeSwitcher() {
+            const theme = themes[currentThemeIndex];
+            const iconEl = document.getElementById('theme-icon');
+            const textEl = document.getElementById('theme-text');
+            
+            if (iconEl && textEl) {
+                const icons = {
+                    'system': '🌓',
+                    'light': '☀️',
+                    'dark': '🌙'
+                };
+                iconEl.textContent = icons[theme];
+                textEl.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+            }
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+            if (savedTheme && themes.includes(savedTheme)) {
+                currentThemeIndex = themes.indexOf(savedTheme);
+            }
+            applyTheme(themes[currentThemeIndex]);
+            updateThemeSwitcher();
+        }
+
+        function cycleTheme() {
+            currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+            const theme = themes[currentThemeIndex];
+            localStorage.setItem(THEME_STORAGE_KEY, theme);
+            applyTheme(theme);
+            updateThemeSwitcher();
+        }
+
+        function setupThemeSwitcher() {
+            const switcher = document.getElementById('theme-switcher');
+            if (switcher) {
+                switcher.addEventListener('click', cycleTheme);
+            }
+        }
+
+        // Initialize theme on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                initTheme();
+                setupThemeSwitcher();
+            });
+        } else {
+            initTheme();
+            setupThemeSwitcher();
+        }
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+            if (themes[currentThemeIndex] === 'system') {
+                applyTheme('system');
+            }
+        });
+    })();
+</script>
+{{end}}
+

@@ -1,0 +1,86 @@
+package server
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+)
+
+func (s *Server) Start(ctx context.Context) error {
+	if s.config.AutoDeploy {
+		s.logger.Info("Auto-deployment enabled, starting periodic reconciliation", "interval", s.config.ReconcileInterval)
+		go s.reconciler.StartPeriodicReconciliation(ctx, s.config.ReconcileInterval)
+	} else {
+		s.logger.Info("Auto-deployment disabled, periodic reconciliation will not run")
+		s.reconciler.SetReady(true)
+	}
+
+	go s.startReconciliationHandler(ctx)
+
+	go s.startLogCleanup(ctx)
+
+	go func() {
+		s.logger.Info("Starting HTTP server", "port", s.config.Port)
+		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			s.logger.Error(err, "HTTP server error")
+		}
+	}()
+
+	return nil
+}
+
+func (s *Server) WaitForShutdown() error {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+
+	s.logger.Info("Shutting down...")
+	return s.Shutdown(context.Background())
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("failed to shutdown HTTP server: %w", err)
+	}
+
+	s.logger.Info("Shutdown complete")
+	return nil
+}
+
+func (s *Server) startReconciliationHandler(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case key := <-s.reconcileCh:
+			if err := s.reconciler.ReconcileKey(ctx, key); err != nil {
+				s.logger.Error(err, "failed to reconcile key from API", "key", key)
+			}
+		}
+	}
+}
+
+func (s *Server) startLogCleanup(ctx context.Context) {
+	ticker := time.NewTicker(s.config.LogCleanupInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			before := time.Now().AddDate(0, 0, -s.config.LogRetentionDays)
+			if err := s.eventStore.CleanupOldEvents(before); err != nil {
+				s.logger.Error(err, "failed to cleanup old events")
+			}
+		}
+	}
+}
+

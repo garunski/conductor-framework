@@ -1,0 +1,294 @@
+{{define "logs"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logs - {{.AppName}}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    {{template "styles" .}}
+</head>
+<body class="d-flex vh-100 overflow-hidden">
+    <div class="d-flex flex-column flex-shrink-0" style="width: 256px;">
+        {{template "sidebar" .}}
+    </div>
+    <main class="flex-grow-1 overflow-y-auto">
+        <div class="container-fluid p-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2>Reconciliation Logs</h2>
+                            <p class="card-description mb-0">View reconciliation events, errors, and status updates</p>
+                        </div>
+                        <button class="btn btn-sm" onclick="loadLogs()" data-bs-toggle="tooltip" data-bs-title="Refresh logs">
+                            REFRESH
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="logs-filters-bar d-flex gap-3 align-items-center p-3 mb-3 flex-wrap">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-secondary dropdown-toggle custom-dropdown-btn" type="button" id="filter-type-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span id="filter-type-label">All Types</span>
+                            </button>
+                            <ul class="dropdown-menu custom-dropdown-menu" aria-labelledby="filter-type-dropdown">
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="">All Types</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="error">Error</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="success">Success</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="info">Info</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="warning">Warning</a></li>
+                            </ul>
+                            <input type="hidden" id="filter-type" value="">
+                    </div>
+                    
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-secondary dropdown-toggle custom-dropdown-btn" type="button" id="filter-time-range-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span id="filter-time-range-label">All Time</span>
+                            </button>
+                            <ul class="dropdown-menu custom-dropdown-menu" aria-labelledby="filter-time-range-dropdown">
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="">All Time</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="1">Last 1 min</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="5">Last 5 mins</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="15">Last 15 mins</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="30">Last 30 mins</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="60">Last 1 hour</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="120">Last 2 hours</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="360">Last 6 hours</a></li>
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="1440">Last 24 hours</a></li>
+                            </ul>
+                            <input type="hidden" id="filter-time-range" value="">
+                    </div>
+                    
+                    <div class="flex-grow-1">
+                        <input type="text" id="filter-resource" class="form-control form-control-sm" placeholder="Filter by resource key...">
+                    </div>
+                    
+                    <div>
+                        <button class="btn btn-sm btn-secondary" onclick="clearFilters()">CLEAR</button>
+                    </div>
+                </div>
+
+                <div id="logs-container">
+                        <p class="text-center p-4 text-muted">Loading logs...</p>
+                </div>
+            </div>
+            </div>
+    {{template "scripts-core" .}}
+    {{template "theme-switcher" .}}
+    <script>
+        let lastLoadTime = null;
+        let pollInterval = null;
+
+        function renderLogs(events) {
+            const container = document.getElementById('logs-container');
+            if (!container) return;
+            
+            if (!events || events.length === 0) {
+                container.innerHTML = '<p class="text-center p-4 text-muted">No events found</p>';
+                return;
+            }
+
+            let html = '<div class="table-responsive"><table class="table table-striped table-hover"><thead><tr><th>Timestamp</th><th>Type</th><th>Resource</th><th>Message</th><th>Error</th></tr></thead><tbody>';
+            
+            for (const event of events) {
+                const isNew = lastLoadTime && new Date(event.timestamp) > lastLoadTime;
+                const typeClass = getTypeClass(event.type);
+                const rowClass = isNew ? 'log-entry new ' + typeClass : 'log-entry ' + typeClass;
+                
+                html += `<tr class="${rowClass}">`;
+                html += `<td class="log-timestamp">${formatTimestamp(event.timestamp)}</td>`;
+                html += `<td><span class="log-type">${escapeHtml(event.type)}</span></td>`;
+                html += `<td class="log-resource">${escapeHtml(event.resourceKey || '-')}</td>`;
+                html += `<td class="log-message">${escapeHtml(event.message)}</td>`;
+                html += `<td>${event.error ? '<div class="log-error">' + escapeHtml(event.error) + '</div>' : '-'}</td>`;
+                html += '</tr>';
+            }
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        function buildQueryParams() {
+            const params = new URLSearchParams();
+            
+            const typeEl = document.getElementById('filter-type');
+            const resourceEl = document.getElementById('filter-resource');
+            const timeRangeEl = document.getElementById('filter-time-range');
+            
+            if (typeEl && typeEl.value) {
+                params.append('type', typeEl.value);
+            }
+            
+            if (resourceEl && resourceEl.value) {
+                params.append('resource', resourceEl.value);
+            }
+            
+            if (timeRangeEl && timeRangeEl.value) {
+                const minutes = parseInt(timeRangeEl.value);
+                const now = new Date();
+                const pastTime = new Date(now.getTime() - minutes * 60 * 1000);
+                params.append('since', pastTime.toISOString());
+            }
+            
+            params.append('limit', '100');
+            
+            return params.toString();
+        }
+
+        function loadLogs() {
+            const params = buildQueryParams();
+            const url = '/api/events' + (params ? '?' + params : '');
+            
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    lastLoadTime = new Date();
+                    renderLogs(data);
+                })
+                .catch(err => {
+                    console.error('Failed to load logs:', err);
+                    const container = document.getElementById('logs-container');
+                    if (container) {
+                        container.innerHTML = '<p class="p-3 border border-2 border-error color-error">Failed to load logs: ' + escapeHtml(err.message) + '</p>';
+                    }
+                });
+        }
+
+        function clearFilters() {
+            const typeEl = document.getElementById('filter-type');
+            const resourceEl = document.getElementById('filter-resource');
+            const timeRangeEl = document.getElementById('filter-time-range');
+            
+            if (typeEl) {
+                typeEl.value = '';
+                const typeToggle = document.getElementById('filter-type-toggle');
+                if (typeToggle) {
+                    typeToggle.querySelector('.custom-dropdown-value').textContent = 'All Types';
+                }
+                document.querySelectorAll('#filter-type-menu .custom-dropdown-item').forEach(item => {
+                    item.classList.remove('active');
+                    if (item.dataset.value === '') item.classList.add('active');
+                });
+            }
+            if (resourceEl) resourceEl.value = '';
+            if (timeRangeEl) {
+                timeRangeEl.value = '';
+                const timeToggle = document.getElementById('filter-time-range-toggle');
+                if (timeToggle) {
+                    timeToggle.querySelector('.custom-dropdown-value').textContent = 'All Time';
+                }
+                document.querySelectorAll('#filter-time-range-menu .custom-dropdown-item').forEach(item => {
+                    item.classList.remove('active');
+                    if (item.dataset.value === '') item.classList.add('active');
+                });
+            }
+            
+            // Close all dropdowns
+            document.querySelectorAll('.custom-dropdown-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+            
+            loadLogs();
+        }
+
+        // Bootstrap Dropdown Functionality
+        function initDropdowns() {
+            // Handle filter type dropdown
+            document.querySelectorAll('#filter-type-dropdown + .dropdown-menu .dropdown-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const value = this.dataset.value;
+                    const text = this.textContent.trim();
+                    document.getElementById('filter-type').value = value;
+                    document.getElementById('filter-type-label').textContent = text;
+                    
+                    // Update active state
+                    this.parentElement.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    loadLogs();
+                });
+            });
+            
+            // Handle time range dropdown
+            document.querySelectorAll('#filter-time-range-dropdown + .dropdown-menu .dropdown-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const value = this.dataset.value;
+                    const text = this.textContent.trim();
+                    document.getElementById('filter-time-range').value = value;
+                    document.getElementById('filter-time-range-label').textContent = text;
+                    
+                    // Update active state
+                    this.parentElement.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    loadLogs();
+                });
+            });
+        }
+
+        // Auto-apply filters when they change
+        function initFilters() {
+            const resourceEl = document.getElementById('filter-resource');
+            
+            if (resourceEl) {
+                // Debounce search input
+                let searchTimeout;
+                resourceEl.addEventListener('input', function() {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(loadLogs, 500);
+                });
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('filter-type').value = '';
+            document.getElementById('filter-type-label').textContent = 'All Types';
+            document.getElementById('filter-time-range').value = '';
+            document.getElementById('filter-time-range-label').textContent = 'All Time';
+            document.getElementById('filter-resource').value = '';
+            
+            // Clear active states
+            document.querySelectorAll('.custom-dropdown-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Close dropdowns
+            document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                const bsDropdown = bootstrap.Dropdown.getInstance(menu.previousElementSibling);
+                if (bsDropdown) bsDropdown.hide();
+            });
+            
+            loadLogs();
+        }
+
+        // Initialize dropdowns, filters, tooltips and load logs
+        initDropdowns();
+        initFilters();
+        
+        // Initialize tooltips
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach(tooltipTriggerEl => {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        loadLogs();
+
+        // Poll for updates every 5 seconds
+        pollInterval = setInterval(loadLogs, 5000);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        });
+    </script>
+        </div>
+    </main>
+</body>
+</html>
+{{end}}

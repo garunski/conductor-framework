@@ -1,0 +1,27 @@
+{{define "service-details"}}
+<div class="modal fade" id="service-details-modal" tabindex="-1" aria-labelledby="service-details-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content custom-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="service-details-name">Service Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="service-details-loading" style="display: none;">
+                    <p class="text-muted">Loading...</p>
+                </div>
+                <div id="service-details-info" style="display: none;">
+                    <div class="mb-3">
+                        <h5 class="mb-3">Environment Variables</h5>
+                        <div id="service-details-env" class="d-flex flex-column gap-2"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+

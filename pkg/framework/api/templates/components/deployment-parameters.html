@@ -1,0 +1,640 @@
+{{define "deployment-parameters"}}
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2>Deployment Parameters</h2>
+                <p class="card-description mb-0">Configure deployment settings for all services</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" form="parameters-form" class="btn btn-sm" id="btn-save-parameters">SAVE</button>
+                <button type="button" class="btn btn-sm btn-secondary" id="btn-reset-parameters">RESET</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <form id="parameters-form">
+        <!-- Global Defaults Section -->
+        <div class="mb-5 pb-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <h3 class="mb-1">Global Defaults</h3>
+                    <p class="small text-muted mb-0">Apply to all services unless overridden</p>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="collapse" data-bs-target="#global-advanced" aria-expanded="false" aria-controls="global-advanced">
+                    <span class="toggle-text">SHOW MORE</span>
+                </button>
+            </div>
+            
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="global-namespace" class="form-label fw-semibold small">Namespace</label>
+                    <input type="text" class="form-control form-control-sm" id="global-namespace" name="global.namespace" value="default" placeholder="default">
+                </div>
+                
+                <div class="col-md-6">
+                    <label for="global-namePrefix" class="form-label fw-semibold small">Name Prefix</label>
+                    <input type="text" class="form-control form-control-sm" id="global-namePrefix" name="global.namePrefix" value="" placeholder="optional">
+                </div>
+            </div>
+            
+            <!-- Additional Global Defaults (Collapsible) -->
+            <div class="collapse" id="global-advanced">
+                <div class="row g-3 mt-3">
+                    <div class="col-md-6">
+                        <label for="global-replicas" class="form-label fw-semibold small">Replicas</label>
+                        <input type="number" class="form-control form-control-sm" id="global-replicas" name="global.replicas" value="1" min="1">
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label for="global-storageSize" class="form-label fw-semibold small">Storage Size</label>
+                        <input type="text" class="form-control form-control-sm" id="global-storageSize" name="global.storageSize" value="" placeholder="e.g., 10Gi">
+                    </div>
+                </div>
+                
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="mb-3 fw-bold">Resource Requests</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="global-requests-memory" class="form-label fw-semibold small">Memory</label>
+                            <input type="text" class="form-control form-control-sm" id="global-requests-memory" name="global.resources.requests.memory" value="" placeholder="e.g., 512Mi">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="global-requests-cpu" class="form-label fw-semibold small">CPU</label>
+                            <input type="text" class="form-control form-control-sm" id="global-requests-cpu" name="global.resources.requests.cpu" value="" placeholder="e.g., 250m">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="mb-3 fw-bold">Resource Limits</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="global-limits-memory" class="form-label fw-semibold small">Memory</label>
+                            <input type="text" class="form-control form-control-sm" id="global-limits-memory" name="global.resources.limits.memory" value="" placeholder="e.g., 2Gi">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="global-limits-cpu" class="form-label fw-semibold small">CPU</label>
+                            <input type="text" class="form-control form-control-sm" id="global-limits-cpu" name="global.resources.limits.cpu" value="" placeholder="e.g., 1000m">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Per-Service Overrides Section -->
+        <div class="mb-0">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h3 class="mb-1">Service Overrides</h3>
+                    <p class="small text-muted mb-0">Override defaults for specific services</p>
+                </div>
+            </div>
+            
+            <div class="row g-3">
+                {{range .Services}}
+                <div class="col-md-6">
+                    <div class="service-override-card p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4 class="mb-0 text-capitalize">{{.}}</h4>
+                            <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="collapse" data-bs-target="#collapse-{{.}}" aria-expanded="false" aria-controls="collapse-{{.}}">
+                                <span class="toggle-text">CONFIGURE</span>
+                            </button>
+                        </div>
+                        
+                        <div class="collapse" id="collapse-{{.}}">
+                            <!-- Title Row -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-lg-6">
+                                    <h5 class="mb-0 small fw-bold text-uppercase">Override Values</h5>
+                                </div>
+                                <div class="col-12 col-lg-6">
+                                    <h5 class="mb-0 small fw-bold text-uppercase d-flex align-items-center gap-2">
+                                        <span>Current Values</span>
+                                        <span id="current-values-badge-{{.}}" class="current-values-badge-inline"></span>
+                                    </h5>
+                                </div>
+                            </div>
+                            <!-- Content Row -->
+                            <div class="row g-3">
+                                <div class="col-12 col-lg-6">
+                                    <div class="row g-3">
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold small">Namespace</label>
+                                            <input type="text" class="form-control form-control-sm" name="services.{{.}}.namespace" placeholder="default">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold small">Name Prefix</label>
+                                            <input type="text" class="form-control form-control-sm" name="services.{{.}}.namePrefix" placeholder="default">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold small">Replicas</label>
+                                            <input type="number" class="form-control form-control-sm" name="services.{{.}}.replicas" min="1" placeholder="1">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold small">Image Tag</label>
+                                            <input type="text" class="form-control form-control-sm" name="services.{{.}}.imageTag" placeholder="e.g., 1.20.0">
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-semibold small">Storage Size</label>
+                                            <input type="text" class="form-control form-control-sm" name="services.{{.}}.storageSize" placeholder="e.g., 10Gi">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-4 pt-3 border-top">
+                                        <h6 class="mb-3 fw-bold">Resource Requests</h6>
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label fw-semibold small">Memory</label>
+                                                <input type="text" class="form-control form-control-sm" name="services.{{.}}.resources.requests.memory" placeholder="e.g., 512Mi">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label fw-semibold small">CPU</label>
+                                                <input type="text" class="form-control form-control-sm" name="services.{{.}}.resources.requests.cpu" placeholder="e.g., 250m">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-4 pt-3 border-top">
+                                        <h6 class="mb-3 fw-bold">Resource Limits</h6>
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label fw-semibold small">Memory</label>
+                                                <input type="text" class="form-control form-control-sm" name="services.{{.}}.resources.limits.memory" placeholder="e.g., 2Gi">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label fw-semibold small">CPU</label>
+                                                <input type="text" class="form-control form-control-sm" name="services.{{.}}.resources.limits.cpu" placeholder="e.g., 1000m">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-6">
+                                    <div id="current-values-{{.}}" class="current-values-panel">
+                                        <div class="current-values-empty">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+        </div>
+        
+            <div id="parameters-status" class="mt-3"></div>
+        </form>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirm-modal" tabindex="-1" aria-labelledby="confirm-modal-label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content custom-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirm-modal-label">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-modal-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="confirm-modal-cancel" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn" id="confirm-modal-confirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // Load merged values for a specific service as fallback
+    async function loadMergedValuesForService(serviceName) {
+        try {
+            const response = await fetch(`/api/parameters/${serviceName.toLowerCase()}`);
+            if (response.ok) {
+                const mergedParams = await response.json();
+                const serviceData = { merged: mergedParams };
+                updateCurrentValuesDisplay(serviceName, serviceData);
+            }
+        } catch (error) {
+            console.error(`Error loading merged values for ${serviceName}:`, error);
+        }
+    }
+    
+    // Load current values for all services
+    async function loadCurrentValues() {
+        try {
+            const response = await fetch('/api/parameters/values');
+            if (!response.ok) {
+                throw new Error('Failed to load current values');
+            }
+            const data = await response.json();
+            
+            // Update current values display for each service
+            // Create a normalized map (lowercase keys) for case-insensitive matching
+            const normalizedData = {};
+            for (const [serviceName, serviceData] of Object.entries(data)) {
+                normalizedData[serviceName.toLowerCase()] = { serviceName, serviceData };
+            }
+            
+            // Find all service containers and match them (exclude badge elements)
+            const valueContainers = document.querySelectorAll('[id^="current-values-"]:not([id*="badge"])');
+            valueContainers.forEach(container => {
+                const id = container.id;
+                const serviceNameFromId = id.replace('current-values-', '');
+                const normalizedKey = serviceNameFromId.toLowerCase();
+                
+                if (normalizedData[normalizedKey]) {
+                    updateCurrentValuesDisplay(serviceNameFromId, normalizedData[normalizedKey].serviceData);
+                } else {
+                    // If no data found, try to get merged values from parameters API as fallback
+                    loadMergedValuesForService(serviceNameFromId);
+                }
+            });
+        } catch (error) {
+            console.error('Error loading current values:', error);
+            // Show error state in all containers (exclude badge elements)
+            const errorContainers = document.querySelectorAll('[id^="current-values-"]:not([id*="badge"])');
+            errorContainers.forEach(container => {
+                if (container.innerHTML.includes('Loading')) {
+                    container.innerHTML = '<div class="current-values-empty">Error loading values</div>';
+                }
+            });
+        }
+    }
+    
+    function updateCurrentValuesDisplay(serviceName, serviceData) {
+        const container = document.getElementById(`current-values-${serviceName}`);
+        if (!container) {
+            console.warn(`Container not found for service: ${serviceName}`);
+            return;
+        }
+        
+        // Determine which values to show: deployed if available, otherwise merged/default
+        const valuesToShow = serviceData.deployed || serviceData.merged;
+        const isDeployed = !!serviceData.deployed;
+        
+        // Update badge in title first
+        const badgeEl = document.getElementById(`current-values-badge-${serviceName}`);
+        if (badgeEl) {
+            if (isDeployed) {
+                badgeEl.className = 'current-values-badge-inline current-values-badge-success';
+                badgeEl.textContent = 'Deployed';
+            } else {
+                badgeEl.className = 'current-values-badge-inline';
+                badgeEl.textContent = 'Default';
+            }
+        }
+        
+        if (!valuesToShow) {
+            container.innerHTML = '<div class="current-values-empty">No values available</div>';
+            return;
+        }
+        
+        // Clear container completely before adding new content
+        container.innerHTML = '';
+        
+        let html = '';
+        html += '<div class="row g-3">';
+        
+        // Namespace - always show
+        html += '<div class="col-12">';
+        html += '<label class="form-label fw-semibold small">Namespace</label>';
+        html += `<div class="current-value-display">${escapeHtml(valuesToShow.namespace || 'default')}</div>`;
+        html += '</div>';
+        
+        // Name Prefix - always show (even if empty to maintain alignment)
+        html += '<div class="col-12">';
+        html += '<label class="form-label fw-semibold small">Name Prefix</label>';
+        html += `<div class="current-value-display">${valuesToShow.namePrefix ? escapeHtml(valuesToShow.namePrefix) : '<span style="color: var(--accent3);">—</span>'}</div>`;
+        html += '</div>';
+        
+        // Replicas - always show
+        html += '<div class="col-12">';
+        html += '<label class="form-label fw-semibold small">Replicas</label>';
+        html += `<div class="current-value-display">${escapeHtml(String(valuesToShow.replicas || 1))}</div>`;
+        html += '</div>';
+        
+        // Image Tag - always show (even if empty)
+        html += '<div class="col-12">';
+        html += '<label class="form-label fw-semibold small">Image Tag</label>';
+        html += `<div class="current-value-display">${valuesToShow.imageTag ? escapeHtml(valuesToShow.imageTag) : '<span style="color: var(--accent3);">—</span>'}</div>`;
+        html += '</div>';
+        
+        // Storage Size - always show (even if empty)
+        html += '<div class="col-12">';
+        html += '<label class="form-label fw-semibold small">Storage Size</label>';
+        html += `<div class="current-value-display">${valuesToShow.storageSize ? escapeHtml(valuesToShow.storageSize) : '<span style="color: var(--accent3);">—</span>'}</div>`;
+        html += '</div>';
+        
+        html += '</div>';
+        
+        // Resource Requests section - match left column structure exactly
+        html += '<div class="mt-4 pt-3 border-top">';
+        html += '<h6 class="mb-3 fw-bold">Resource Requests</h6>';
+        html += '<div class="row g-3">';
+        
+        // Memory
+        html += '<div class="col-12">';
+        html += '<label class="form-label fw-semibold small">Memory</label>';
+        html += `<div class="current-value-display">${valuesToShow.resources && valuesToShow.resources.requests && valuesToShow.resources.requests.memory ? escapeHtml(valuesToShow.resources.requests.memory) : '<span style="color: var(--accent3);">—</span>'}</div>`;
+        html += '</div>';
+        
+        // CPU
+        html += '<div class="col-12">';
+        html += '<label class="form-label fw-semibold small">CPU</label>';
+        html += `<div class="current-value-display">${valuesToShow.resources && valuesToShow.resources.requests && valuesToShow.resources.requests.cpu ? escapeHtml(valuesToShow.resources.requests.cpu) : '<span style="color: var(--accent3);">—</span>'}</div>`;
+        html += '</div>';
+        
+        html += '</div>';
+        html += '</div>';
+        
+        // Resource Limits section - match left column structure exactly
+        html += '<div class="mt-4 pt-3 border-top">';
+        html += '<h6 class="mb-3 fw-bold">Resource Limits</h6>';
+        html += '<div class="row g-3">';
+        
+        // Memory
+        html += '<div class="col-12">';
+        html += '<label class="form-label fw-semibold small">Memory</label>';
+        html += `<div class="current-value-display">${valuesToShow.resources && valuesToShow.resources.limits && valuesToShow.resources.limits.memory ? escapeHtml(valuesToShow.resources.limits.memory) : '<span style="color: var(--accent3);">—</span>'}</div>`;
+        html += '</div>';
+        
+        // CPU
+        html += '<div class="col-12">';
+        html += '<label class="form-label fw-semibold small">CPU</label>';
+        html += `<div class="current-value-display">${valuesToShow.resources && valuesToShow.resources.limits && valuesToShow.resources.limits.cpu ? escapeHtml(valuesToShow.resources.limits.cpu) : '<span style="color: var(--accent3);">—</span>'}</div>`;
+        html += '</div>';
+        
+        html += '</div>';
+        html += '</div>';
+        
+        container.innerHTML = html;
+        
+        // Pre-fill override inputs with current values (deployed if deployed, merged if not)
+        populateOverrideInputs(serviceName, valuesToShow);
+    }
+    
+    function populateOverrideInputs(serviceName, values) {
+        if (!values) return;
+        
+        // Set namespace
+        const namespaceInput = document.querySelector(`input[name="services.${serviceName}.namespace"]`);
+        if (namespaceInput && values.namespace) {
+            namespaceInput.value = values.namespace;
+        }
+        
+        // Set name prefix
+        const namePrefixInput = document.querySelector(`input[name="services.${serviceName}.namePrefix"]`);
+        if (namePrefixInput && values.namePrefix) {
+            namePrefixInput.value = values.namePrefix;
+        }
+        
+        // Set replicas
+        const replicasInput = document.querySelector(`input[name="services.${serviceName}.replicas"]`);
+        if (replicasInput && values.replicas) {
+            replicasInput.value = values.replicas;
+        }
+        
+        // Set image tag
+        const imageTagInput = document.querySelector(`input[name="services.${serviceName}.imageTag"]`);
+        if (imageTagInput && values.imageTag) {
+            imageTagInput.value = values.imageTag;
+        }
+        
+        // Set storage size
+        const storageSizeInput = document.querySelector(`input[name="services.${serviceName}.storageSize"]`);
+        if (storageSizeInput && values.storageSize) {
+            storageSizeInput.value = values.storageSize;
+        }
+        
+        // Set resource requests
+        if (values.resources && values.resources.requests) {
+            const memoryInput = document.querySelector(`input[name="services.${serviceName}.resources.requests.memory"]`);
+            if (memoryInput && values.resources.requests.memory) {
+                memoryInput.value = values.resources.requests.memory;
+            }
+            const cpuInput = document.querySelector(`input[name="services.${serviceName}.resources.requests.cpu"]`);
+            if (cpuInput && values.resources.requests.cpu) {
+                cpuInput.value = values.resources.requests.cpu;
+            }
+        }
+        
+        // Set resource limits
+        if (values.resources && values.resources.limits) {
+            const memoryInput = document.querySelector(`input[name="services.${serviceName}.resources.limits.memory"]`);
+            if (memoryInput && values.resources.limits.memory) {
+                memoryInput.value = values.resources.limits.memory;
+            }
+            const cpuInput = document.querySelector(`input[name="services.${serviceName}.resources.limits.cpu"]`);
+            if (cpuInput && values.resources.limits.cpu) {
+                cpuInput.value = values.resources.limits.cpu;
+            }
+        }
+    }
+    
+    // Load parameters on page load
+    async function loadParameters() {
+        try {
+            const response = await fetch('/api/parameters');
+            if (!response.ok) {
+                throw new Error('Failed to load parameters');
+            }
+            const data = await response.json();
+            
+            // Populate global defaults
+            if (data.global) {
+                if (data.global.namespace) document.getElementById('global-namespace').value = data.global.namespace;
+                if (data.global.namePrefix) document.getElementById('global-namePrefix').value = data.global.namePrefix;
+                if (data.global.replicas) document.getElementById('global-replicas').value = data.global.replicas;
+                if (data.global.storageSize) document.getElementById('global-storageSize').value = data.global.storageSize;
+                
+                if (data.global.resources) {
+                    if (data.global.resources.requests) {
+                        if (data.global.resources.requests.memory) document.getElementById('global-requests-memory').value = data.global.resources.requests.memory;
+                        if (data.global.resources.requests.cpu) document.getElementById('global-requests-cpu').value = data.global.resources.requests.cpu;
+                    }
+                    if (data.global.resources.limits) {
+                        if (data.global.resources.limits.memory) document.getElementById('global-limits-memory').value = data.global.resources.limits.memory;
+                        if (data.global.resources.limits.cpu) document.getElementById('global-limits-cpu').value = data.global.resources.limits.cpu;
+                    }
+                }
+            }
+            
+            // Populate service overrides
+            if (data.services) {
+                for (const [serviceName, serviceParams] of Object.entries(data.services)) {
+                    const inputs = document.querySelectorAll(`[name^="services.${serviceName}."]`);
+                    inputs.forEach(input => {
+                        const key = input.name.replace(`services.${serviceName}.`, '');
+                        const value = getNestedValue(serviceParams, key);
+                        if (value !== undefined && value !== null && value !== '') {
+                            input.value = value;
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error loading parameters:', error);
+            showParametersStatus('Error loading parameters: ' + error.message, 'error');
+        }
+    }
+    
+    function getNestedValue(obj, path) {
+        return path.split('.').reduce((current, key) => current && current[key], obj);
+    }
+    
+    // Update toggle button text based on collapse state and load current values when expanded
+    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(btn => {
+        const targetId = btn.getAttribute('data-bs-target');
+        const target = document.querySelector(targetId);
+        const text = btn.querySelector('.toggle-text');
+        
+        if (target) {
+            target.addEventListener('show.bs.collapse', function() {
+                if (text) {
+                    // Check if this is the global advanced section
+                    if (targetId === '#global-advanced') {
+                        text.textContent = 'HIDE MORE';
+                    } else {
+                        text.textContent = 'HIDE';
+                    }
+                }
+                // Load current values when service section is expanded (not for global advanced)
+                if (targetId !== '#global-advanced') {
+                    loadCurrentValues();
+                }
+            });
+            target.addEventListener('hide.bs.collapse', function() {
+                if (text) {
+                    // Check if this is the global advanced section
+                    if (targetId === '#global-advanced') {
+                        text.textContent = 'SHOW MORE';
+                    } else {
+                        text.textContent = 'CONFIGURE';
+                    }
+                }
+            });
+        }
+    });
+    
+    // Form submission
+    document.getElementById('parameters-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const btn = document.getElementById('btn-save-parameters');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        
+        try {
+            // Build request object from form data
+            const formData = new FormData(this);
+            const data = {
+                global: {},
+                services: {}
+            };
+            
+            // Process global fields
+            for (const [key, value] of formData.entries()) {
+                if (key.startsWith('global.')) {
+                    const path = key.replace('global.', '').split('.');
+                    setNestedValue(data.global, path, value);
+                } else if (key.startsWith('services.')) {
+                    const parts = key.replace('services.', '').split('.');
+                    const serviceName = parts[0];
+                    const fieldPath = parts.slice(1);
+                    
+                    if (!data.services[serviceName]) {
+                        data.services[serviceName] = {};
+                    }
+                    setNestedValue(data.services[serviceName], fieldPath, value);
+                }
+            }
+            
+            // Remove empty values
+            cleanObject(data.global);
+            for (const serviceName in data.services) {
+                cleanObject(data.services[serviceName]);
+                if (Object.keys(data.services[serviceName]).length === 0) {
+                    delete data.services[serviceName];
+                }
+            }
+            
+            const response = await fetch('/api/parameters', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                showParametersStatus('Parameters saved successfully!', 'success');
+            } else {
+                showParametersStatus('Error: ' + (result.error || 'Unknown error'), 'error');
+            }
+        } catch (error) {
+            showParametersStatus('Error: ' + error.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    });
+    
+    // Reset to defaults
+    document.getElementById('btn-reset-parameters').addEventListener('click', function() {
+        showConfirmModal('Reset all parameters to defaults?', function() {
+            document.getElementById('parameters-form').reset();
+            document.getElementById('global-namespace').value = 'default';
+            document.getElementById('global-replicas').value = '1';
+            loadParameters();
+        });
+    });
+    
+    function setNestedValue(obj, path, value) {
+        if (value === '' || value === null) return;
+        
+        const lastKey = path[path.length - 1];
+        const parent = path.slice(0, -1).reduce((current, key) => {
+            if (!current[key]) current[key] = {};
+            return current[key];
+        }, obj);
+        parent[lastKey] = value;
+    }
+    
+    function cleanObject(obj) {
+        for (const key in obj) {
+            if (obj[key] === '' || obj[key] === null || obj[key] === undefined) {
+                delete obj[key];
+            } else if (typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+                cleanObject(obj[key]);
+                if (Object.keys(obj[key]).length === 0) {
+                    delete obj[key];
+                }
+            }
+        }
+    }
+    
+    function showParametersStatus(message, type) {
+        const statusDiv = document.getElementById('parameters-status');
+        statusDiv.className = `status-message ${type}`;
+        statusDiv.textContent = message;
+        statusDiv.style.display = 'block';
+        
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+    
+    // Load parameters and current values when page loads
+    loadParameters();
+    loadCurrentValues();
+})();
+</script>
+{{end}}
+

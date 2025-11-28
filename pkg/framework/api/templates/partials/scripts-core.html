@@ -1,0 +1,109 @@
+{{define "scripts-core"}}
+<script>
+    // Core JavaScript Utilities
+    
+    // Escape HTML to prevent XSS
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Show status message with appropriate styling
+    function showStatus(message, type) {
+        const statusDiv = document.getElementById('status');
+        if (!statusDiv) return;
+        
+        let borderColor, textColor;
+        
+        if (type === 'success') {
+            borderColor = 'var(--color-success)';
+            textColor = 'var(--text)';
+        } else if (type === 'error') {
+            borderColor = 'var(--color-error)';
+            textColor = 'var(--color-error)';
+        } else {
+            borderColor = 'var(--color-info)';
+            textColor = 'var(--color-info)';
+        }
+        
+        statusDiv.innerHTML = `<div class="status-message ${type}" style="border-color: ${borderColor} !important; color: ${textColor} !important;">${escapeHtml(message)}</div>`;
+    }
+
+    // Set button loading state
+    function setButtonLoading(button, loading) {
+        if (!button) return;
+        if (loading) {
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            button.classList.add('opacity-75');
+        } else {
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+            button.classList.remove('opacity-75');
+        }
+    }
+
+    // Format timestamp to locale string
+    function formatTimestamp(timestamp) {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        return date.toLocaleString();
+    }
+
+    // Get type class for styling
+    function getTypeClass(type) {
+        if (!type) return '';
+        return type.toLowerCase();
+    }
+
+    // Set active nav link based on current path
+    document.addEventListener('DOMContentLoaded', function() {
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.nav-link').forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.classList.add('active');
+            }
+        });
+    });
+
+    // Show confirmation modal
+    function showConfirmModal(message, onConfirm) {
+        const modal = document.getElementById('confirm-modal');
+        const modalMessage = document.getElementById('confirm-modal-message');
+        const confirmBtn = document.getElementById('confirm-modal-confirm');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+        
+        if (!modal || !modalMessage || !confirmBtn || !cancelBtn) {
+            // Fallback to native confirm if modal doesn't exist
+            if (confirm(message)) {
+                onConfirm();
+            }
+            return;
+        }
+        
+        modalMessage.textContent = message;
+        
+        // Remove existing event listeners by cloning
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        const newCancelBtn = cancelBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+        cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+        
+        const bsModal = new bootstrap.Modal(modal);
+        
+        newConfirmBtn.addEventListener('click', function() {
+            bsModal.hide();
+            onConfirm();
+        });
+        
+        newCancelBtn.addEventListener('click', function() {
+            bsModal.hide();
+        });
+        
+        bsModal.show();
+    }
+</script>
+{{end}}
+
