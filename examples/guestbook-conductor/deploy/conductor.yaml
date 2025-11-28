@@ -1,0 +1,248 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: deploymentparameters.conductor.localmeadow.io
+spec:
+  group: conductor.localmeadow.io
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              global:
+                type: object
+                properties:
+                  namespace:
+                    type: string
+                    default: "default"
+                  namePrefix:
+                    type: string
+                    default: ""
+                  replicas:
+                    type: integer
+                    default: 1
+                  imageTag:
+                    type: string
+                  resources:
+                    type: object
+                    properties:
+                      requests:
+                        type: object
+                        properties:
+                          memory:
+                            type: string
+                          cpu:
+                            type: string
+                      limits:
+                        type: object
+                        properties:
+                          memory:
+                            type: string
+                          cpu:
+                            type: string
+                  storageSize:
+                    type: string
+                  labels:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  annotations:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  nodeSelector:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  tolerations:
+                    type: array
+                    items:
+                      type: object
+              services:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    namespace:
+                      type: string
+                    namePrefix:
+                      type: string
+                    replicas:
+                      type: integer
+                    imageTag:
+                      type: string
+                    resources:
+                      type: object
+                      properties:
+                        requests:
+                          type: object
+                          properties:
+                            memory:
+                              type: string
+                            cpu:
+                              type: string
+                        limits:
+                          type: object
+                          properties:
+                            memory:
+                              type: string
+                            cpu:
+                              type: string
+                    storageSize:
+                      type: string
+                    labels:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    annotations:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    nodeSelector:
+                      type: object
+                      additionalProperties:
+                        type: string
+                    tolerations:
+                      type: array
+                      items:
+                        type: object
+  scope: Namespaced
+  names:
+    plural: deploymentparameters
+    singular: deploymentparameter
+    kind: DeploymentParameters
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: guestbook-conductor
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: guestbook-conductor
+  namespace: guestbook-conductor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: guestbook-conductor
+rules:
+- apiGroups: [""]
+  resources: ["*"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["batch"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["conductor.localmeadow.io"]
+  resources: ["deploymentparameters"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: guestbook-conductor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: guestbook-conductor
+subjects:
+- kind: ServiceAccount
+  name: guestbook-conductor
+  namespace: guestbook-conductor
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: guestbook-conductor-data
+  namespace: guestbook-conductor
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook-conductor
+  namespace: guestbook-conductor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guestbook-conductor
+  template:
+    metadata:
+      labels:
+        app: guestbook-conductor
+    spec:
+      serviceAccountName: guestbook-conductor
+      containers:
+      - name: conductor
+        image: guestbook-conductor:IMAGE_TAG_PLACEHOLDER
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8081
+          name: http
+        env:
+        - name: BADGER_DATA_PATH
+          value: /data/badger
+        - name: PORT
+          value: "8081"
+        - name: RECONCILE_INTERVAL
+          value: "30s"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: guestbook-conductor-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guestbook-conductor
+  namespace: guestbook-conductor
+spec:
+  selector:
+    app: guestbook-conductor
+  ports:
+  - port: 8081
+    targetPort: 8081
+    name: http
+  type: ClusterIP
+

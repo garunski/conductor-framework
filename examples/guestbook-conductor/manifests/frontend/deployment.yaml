@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}frontend
+  namespace: {{.Namespace}}
+spec:
+  replicas: {{.Replicas}}
+  selector:
+    matchLabels:
+      app: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}frontend
+  template:
+    metadata:
+      labels:
+        app: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}frontend
+    spec:
+      containers:
+      - name: php-redis
+        image: gcr.io/google_samples/gb-frontend:{{if .ImageTag}}{{.ImageTag}}{{else}}v5{{end}}
+        ports:
+        - containerPort: 80
+          name: http
+        env:
+        - name: GET_HOSTS_FROM
+          value: dns
+        resources:
+          requests:
+            memory: {{if and .Resources .Resources.Requests .Resources.Requests.Memory}}{{.Resources.Requests.Memory}}{{else}}"64Mi"{{end}}
+            cpu: {{if and .Resources .Resources.Requests .Resources.Requests.CPU}}{{.Resources.Requests.CPU}}{{else}}"100m"{{end}}
+          limits:
+            memory: {{if and .Resources .Resources.Limits .Resources.Limits.Memory}}{{.Resources.Limits.Memory}}{{else}}"128Mi"{{end}}
+            cpu: {{if and .Resources .Resources.Limits .Resources.Limits.CPU}}{{.Resources.Limits.CPU}}{{else}}"200m"{{end}}
+

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}frontend
+  namespace: {{.Namespace}}
+spec:
+  selector:
+    app: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}frontend
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+  type: ClusterIP
+

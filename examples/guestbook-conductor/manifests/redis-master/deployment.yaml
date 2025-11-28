@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}redis-master
+  namespace: {{.Namespace}}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}redis
+      role: master
+  template:
+    metadata:
+      labels:
+        app: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}redis
+        role: master
+    spec:
+      containers:
+      - name: master
+        image: redis:{{if .ImageTag}}{{.ImageTag}}{{else}}6.0.5{{end}}
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources:
+          requests:
+            memory: {{if and .Resources .Resources.Requests .Resources.Requests.Memory}}{{.Resources.Requests.Memory}}{{else}}"64Mi"{{end}}
+            cpu: {{if and .Resources .Resources.Requests .Resources.Requests.CPU}}{{.Resources.Requests.CPU}}{{else}}"100m"{{end}}
+          limits:
+            memory: {{if and .Resources .Resources.Limits .Resources.Limits.Memory}}{{.Resources.Limits.Memory}}{{else}}"256Mi"{{end}}
+            cpu: {{if and .Resources .Resources.Limits .Resources.Limits.CPU}}{{.Resources.Limits.CPU}}{{else}}"200m"{{end}}
+
