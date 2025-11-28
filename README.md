@@ -30,6 +30,7 @@ import (
     "context"
     "embed"
     "log"
+    "text/template"
     
     "github.com/garunski/conductor-framework/pkg/framework"
 )
@@ -46,6 +47,13 @@ func main() {
     cfg.ManifestFS = manifestFiles
     cfg.ManifestRoot = "manifests"
     
+    // Optional: Add custom template functions
+    cfg.TemplateFuncs = template.FuncMap{
+        "myCustomFunc": func(s string) string {
+            return "custom-" + s
+        },
+    }
+    
     if err := framework.Run(ctx, cfg); err != nil {
         log.Fatalf("Framework error: %v", err)
     }
@@ -58,6 +66,8 @@ func main() {
 
 - Load manifests from embedded filesystems
 - Template rendering with parameter substitution
+- 60+ Sprig template functions (same as Helm)
+- Custom template functions support
 - Service-based organization
 - Override support via API
 
@@ -97,6 +107,7 @@ type Config struct {
     ManifestFS       embed.FS
     ManifestRoot     string
     CustomTemplateFS *embed.FS
+    TemplateFuncs    template.FuncMap // Optional custom template functions
     
     // Storage configuration
     DataPath string

@@ -7,6 +7,7 @@ This guide provides comprehensive documentation for using the k8s-conductor-fram
 1. [Getting Started](#getting-started)
 2. [Configuration](#configuration)
 3. [Manifest Management](#manifest-management)
+   - [Template Functions](#available-template-functions)
 4. [Web UI](#web-ui)
 5. [REST API](#rest-api)
 6. [Reconciliation](#reconciliation)
@@ -70,6 +71,8 @@ cfg.ManifestFS = myManifests
 You can customize all aspects of the framework:
 
 ```go
+import "text/template"
+
 cfg := framework.Config{
     AppName:            "my-operator",
     AppVersion:         "1.0.0",
@@ -82,6 +85,12 @@ cfg := framework.Config{
     CRDGroup:           "conductor.localmeadow.io",
     CRDVersion:         "v1alpha1",
     CRDResource:        "deploymentparameters",
+    TemplateFuncs:      template.FuncMap{
+        // Optional: Add custom template functions
+        "myFunc": func(s string) string {
+            return "custom-" + s
+        },
+    },
 }
 ```
 
@@ -123,7 +132,9 @@ var manifestFiles embed.FS
 
 ### Template Rendering
 
-Manifests support Go template syntax for parameter substitution:
+Manifests support Go template syntax for parameter substitution with access to 60+ template functions from the Sprig library (used by Helm), plus custom functions.
+
+#### Basic Template Syntax
 
 ```yaml
 apiVersion: apps/v1
@@ -140,6 +151,141 @@ spec:
 ```
 
 Parameters are provided via CRD or extracted from manifest defaults.
+
+#### Available Template Functions
+
+The framework provides access to:
+
+1. **Sprig Functions** - 60+ functions from the [Sprig library](https://masterminds.github.io/sprig/) (same library used by Helm)
+2. **Built-in Functions** - Framework-specific helper functions
+3. **Custom Functions** - User-defined functions via `Config.TemplateFuncs`
+
+##### Sprig Functions
+
+Commonly used Sprig functions for Kubernetes manifests:
+
+**String Manipulation:**
+```yaml
+name: {{ .ServiceName | upper }}
+name: {{ .ServiceName | lower }}
+name: {{ .ServiceName | title }}
+name: {{ trim "  test  " }}
+name: {{ trimPrefix "redis-" "redis-master" }}
+name: {{ trimSuffix "-service" "my-service" }}
+name: {{ replace "old" "new" "old value" }}
+name: {{ contains "test" "testing" }}
+```
+
+**Encoding (for Secrets):**
+```yaml
+apiVersion: v1
+kind: Secret
+data:
+  api-key: {{ "my-secret-value" | b64enc }}
+  # Decode: {{ "bXktc2VjcmV0LXZhbHVl" | b64dec }}
+```
+
+**Math Operations:**
+```yaml
+replicas: {{ add .Replicas 1 }}
+replicas: {{ sub 5 2 }}
+replicas: {{ mul 3 4 }}
+replicas: {{ div 10 2 }}
+replicas: {{ max 5 10 }}
+replicas: {{ min 5 10 }}
+```
+
+**List Operations:**
+```yaml
+env:
+{{- range list "ENV1=value1" "ENV2=value2" }}
+  - name: {{ . | split "=" | first }}
+    value: {{ . | split "=" | last }}
+{{- end }}
+```
+
+**Dictionary Operations:**
+```yaml
+labels:
+  {{- $labels := dict "app" .ServiceName "version" .ImageTag }}
+  {{- $labels = merge $labels .CustomLabels }}
+  {{- range $k, $v := $labels }}
+  {{ $k }}: {{ $v }}
+  {{- end }}
+```
+
+**Default Values:**
+```yaml
+namespace: {{ default "default" .Namespace }}
+replicas: {{ default 1 .Replicas }}
+image: {{ coalesce .ImageTag .DefaultImage "latest" }}
+```
+
+##### Built-in Custom Functions
+
+**uuidv5** - Generate deterministic UUIDs (useful for secrets):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .ServiceName }}-secret
+data:
+  api-key: {{ uuidv5 "6ba7b810-9dad-11d1-80b4-00c04fd430c8" (printf "%s-%s-key" .Namespace .ServiceName) | b64enc }}
+```
+
+The `uuidv5` function generates a deterministic UUID v5 from a namespace UUID and name. If the namespace UUID is empty, it defaults to the DNS namespace UUID.
+
+**Built-in Helper Functions:**
+```yaml
+# Use default value if empty
+name: {{ defaultIfEmpty .NamePrefix "default" }}
+
+# Prefix a name
+name: {{ prefixName .NamePrefix "service" }}
+
+# Check if prefix exists
+{{- if hasPrefix .NamePrefix }}
+name: {{ prefixName .NamePrefix .ServiceName }}
+{{- end }}
+```
+
+##### Custom Template Functions
+
+You can provide custom template functions via `Config.TemplateFuncs`:
+
+```go
+import (
+    "text/template"
+    "github.com/garunski/conductor-framework/pkg/framework"
+)
+
+cfg := framework.DefaultConfig()
+cfg.TemplateFuncs = template.FuncMap{
+    "myCustomFunc": func(s string) string {
+        return "custom-" + s
+    },
+    // Override Sprig functions if needed
+    "upper": func(s string) string {
+        return "OVERRIDDEN-" + s
+    },
+}
+```
+
+Custom functions have the highest priority and can override Sprig or built-in functions.
+
+**Example Usage:**
+```yaml
+name: {{ myCustomFunc .ServiceName }}
+```
+
+##### Security Note
+
+For security reasons, the `env` and `expandenv` Sprig functions are excluded from the available functions. This prevents templates from accessing environment variables, which could expose sensitive information.
+
+##### Function Reference
+
+For a complete list of available Sprig functions, see the [Sprig documentation](https://masterminds.github.io/sprig/). All functions except `env` and `expandenv` are available.
 
 ### Manifest Overrides
 
