@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/garunski/conductor-framework/pkg/framework/reconciler"
+	"gopkg.in/yaml.v3"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,7 +39,19 @@ func (h *Handler) Up(w http.ResponseWriter, r *http.Request) {
 			WriteErrorResponse(w, h.logger, http.StatusBadRequest, "no_manifests", "No manifests found for selected services", nil)
 			return
 		}
-		
+	}
+	
+	// Re-render manifests with current parameters before deploying
+	if h.parameterClient != nil {
+		updatedManifests, err := h.updateManifestsWithCurrentParameters(ctx, manifests)
+		if err != nil {
+			h.logger.Error(err, "failed to update manifests with current parameters, using existing manifests")
+		} else {
+			manifests = updatedManifests
+		}
+	}
+	
+	if len(req.Services) > 0 {
 		if err := h.reconciler.DeployManifests(ctx, manifests); err != nil {
 			h.logger.Error(err, "failed to deploy selected services")
 			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "deployment_failed", err.Error(), nil)
@@ -278,4 +291,112 @@ func getServiceInstallationStatus(ctx context.Context, services []string, manife
 	}
 
 	return statusMap
+}
+
+// updateManifestsWithCurrentParameters updates manifests with current parameters (especially namespace)
+// This ensures that global defaults are applied when deploying
+func (h *Handler) updateManifestsWithCurrentParameters(ctx context.Context, manifests map[string][]byte) (map[string][]byte, error) {
+	if h.parameterClient == nil {
+		return manifests, nil
+	}
+
+	defaultNamespace := "default"
+	updatedManifests := make(map[string][]byte)
+	
+	// Group manifests by service name
+	serviceManifests := make(map[string]map[string][]byte)
+	
+	for key, yamlData := range manifests {
+		parts := strings.Split(key, "/")
+		if len(parts) < 3 {
+			updatedManifests[key] = yamlData
+			continue
+		}
+		
+		name := parts[2]
+		serviceName := name
+		if strings.HasSuffix(name, "-backend") {
+			serviceName = strings.TrimSuffix(name, "-backend")
+		} else if strings.HasSuffix(name, "-pvc") {
+			serviceName = strings.TrimSuffix(name, "-pvc")
+		} else if strings.HasSuffix(name, "-secrets") {
+			serviceName = strings.TrimSuffix(name, "-secrets")
+		} else if strings.HasSuffix(name, "-config") {
+			serviceName = strings.TrimSuffix(name, "-config")
+		}
+		
+		if serviceManifests[serviceName] == nil {
+			serviceManifests[serviceName] = make(map[string][]byte)
+		}
+		serviceManifests[serviceName][key] = yamlData
+	}
+	
+	// Update each service's manifests with current parameters
+	for serviceName, serviceManifestsMap := range serviceManifests {
+		// Get current merged parameters for this service
+		params, err := h.parameterClient.GetMergedParameters(ctx, serviceName, defaultNamespace)
+		if err != nil {
+			h.logger.V(1).Info("failed to get parameters for service, using existing manifests", "service", serviceName, "error", err)
+			// Use existing manifests if we can't get parameters
+			for k, v := range serviceManifestsMap {
+				updatedManifests[k] = v
+			}
+			continue
+		}
+		
+		// Determine target namespace
+		targetNamespace := "default"
+		if params != nil && params.Namespace != "" {
+			targetNamespace = params.Namespace
+		}
+		
+		// Update each manifest in this service
+		for key, yamlData := range serviceManifestsMap {
+			// Parse YAML
+			var obj map[string]interface{}
+			if err := yaml.Unmarshal(yamlData, &obj); err != nil {
+				h.logger.V(1).Info("failed to parse manifest, using as-is", "key", key, "error", err)
+				updatedManifests[key] = yamlData
+				continue
+			}
+			
+			// Update namespace in metadata
+			metadata, ok := obj["metadata"].(map[string]interface{})
+			if !ok {
+				updatedManifests[key] = yamlData
+				continue
+			}
+			
+			oldNamespace := "default"
+			if ns, ok := metadata["namespace"].(string); ok && ns != "" {
+				oldNamespace = ns
+			}
+			
+			// Update namespace if it's different
+			if oldNamespace != targetNamespace {
+				metadata["namespace"] = targetNamespace
+				
+				// Re-marshal YAML
+				updatedYAML, err := yaml.Marshal(obj)
+				if err != nil {
+					h.logger.V(1).Info("failed to marshal updated manifest, using as-is", "key", key, "error", err)
+					updatedManifests[key] = yamlData
+					continue
+				}
+				
+				// Update key with new namespace
+				parts := strings.Split(key, "/")
+				if len(parts) >= 3 {
+					newKey := fmt.Sprintf("%s/%s/%s", targetNamespace, parts[1], parts[2])
+					updatedManifests[newKey] = updatedYAML
+				} else {
+					updatedManifests[key] = updatedYAML
+				}
+			} else {
+				updatedManifests[key] = yamlData
+			}
+		}
+	}
+	
+	return updatedManifests, nil
 }
