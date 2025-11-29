@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/garunski/conductor-framework/pkg/framework/crd"
 	"github.com/garunski/conductor-framework/pkg/framework/reconciler"
 	"gopkg.in/yaml.v3"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -335,23 +336,40 @@ func (h *Handler) updateManifestsWithCurrentParameters(ctx context.Context, mani
 		serviceManifests[serviceName][key] = yamlData
 	}
 	
-	// Update each service's manifests with current parameters
-	for serviceName, serviceManifestsMap := range serviceManifests {
-		// Get current merged parameters for this service
-		params, err := h.parameterClient.GetMergedParameters(ctx, serviceName, defaultNamespace)
-		if err != nil {
-			h.logger.V(1).Info("failed to get parameters for service, using existing manifests", "service", serviceName, "error", err)
-			// Use existing manifests if we can't get parameters
+	// Get spec once for all services
+	spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
+	if err != nil {
+		h.logger.V(1).Info("failed to get spec, using existing manifests", "error", err)
+		// Use existing manifests if we can't get spec
+		for _, serviceManifestsMap := range serviceManifests {
 			for k, v := range serviceManifestsMap {
 				updatedManifests[k] = v
 			}
-			continue
 		}
-		
-		// Determine target namespace
+		return updatedManifests, nil
+	}
+	
+	// Update each service's manifests with current parameters
+	for serviceName, serviceManifestsMap := range serviceManifests {
+		// Determine target namespace from spec
 		targetNamespace := "default"
-		if params != nil && params.Namespace != "" {
-			targetNamespace = params.Namespace
+		
+		// Check global namespace first
+		if spec != nil {
+			if global, ok := spec["global"].(map[string]interface{}); ok {
+				if ns, ok := global["namespace"].(string); ok && ns != "" {
+					targetNamespace = ns
+				}
+			}
+			
+			// Override with service-specific namespace if present
+			if services, ok := spec["services"].(map[string]interface{}); ok {
+				if service, ok := services[serviceName].(map[string]interface{}); ok {
+					if ns, ok := service["namespace"].(string); ok && ns != "" {
+						targetNamespace = ns
+					}
+				}
+			}
 		}
 		
 		// Update each manifest in this service

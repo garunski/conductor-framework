@@ -29,6 +29,22 @@ spec:
                     default: 1
                   imageTag:
                     type: string
+                  imageRegistry:
+                    type: string
+                    default: ""
+                  imagePullSecrets:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                  storageClassName:
+                    type: string
+                    default: "local-path"
+                  keepPVC:
+                    type: boolean
+                    default: false
                   resources:
                     type: object
                     properties:

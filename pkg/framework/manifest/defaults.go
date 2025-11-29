@@ -8,13 +8,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"gopkg.in/yaml.v3"
-
-	"github.com/garunski/conductor-framework/pkg/framework/crd"
 )
 
 // ExtractDefaultsFromManifest extracts default parameter values from a Kubernetes manifest YAML
 // It parses the YAML and extracts namespace, replicas, image tag, storage size, and resource requests/limits
-func ExtractDefaultsFromManifest(manifestYAML []byte, serviceName string) (*crd.ParameterSet, error) {
+// Returns a map[string]interface{} compatible with the dynamic CRD spec structure
+func ExtractDefaultsFromManifest(manifestYAML []byte, serviceName string) (map[string]interface{}, error) {
 	// Try to parse as Deployment first
 	var deployment appsv1.Deployment
 	if err := yaml.Unmarshal(manifestYAML, &deployment); err == nil && deployment.Kind == "Deployment" {
@@ -30,22 +29,21 @@ func ExtractDefaultsFromManifest(manifestYAML []byte, serviceName string) (*crd.
 	return nil, fmt.Errorf("manifest is neither a Deployment nor StatefulSet")
 }
 
-func extractFromDeployment(dep *appsv1.Deployment) *crd.ParameterSet {
-	params := &crd.ParameterSet{}
+func extractFromDeployment(dep *appsv1.Deployment) map[string]interface{} {
+	params := make(map[string]interface{})
 
 	// Extract namespace
 	if dep.Namespace != "" {
-		params.Namespace = dep.Namespace
+		params["namespace"] = dep.Namespace
 	} else {
-		params.Namespace = "default"
+		params["namespace"] = "default"
 	}
 
 	// Extract replicas
 	if dep.Spec.Replicas != nil {
-		params.Replicas = dep.Spec.Replicas
+		params["replicas"] = int(*dep.Spec.Replicas)
 	} else {
-		replicas := int32(1)
-		params.Replicas = &replicas
+		params["replicas"] = 1
 	}
 
 	// Extract image tag and resources from first container
@@ -56,26 +54,42 @@ func extractFromDeployment(dep *appsv1.Deployment) *crd.ParameterSet {
 		if image := container.Image; image != "" {
 			parts := splitImage(image)
 			if len(parts) == 2 {
-				params.ImageTag = parts[1]
+				params["imageTag"] = parts[1]
 			}
 		}
 
 		// Extract resources
 		if container.Resources.Requests != nil || container.Resources.Limits != nil {
-			params.Resources = &crd.ResourceRequirements{}
+			resources := make(map[string]interface{})
 			
 			if container.Resources.Requests != nil {
-				params.Resources.Requests = &crd.ResourceList{
-					Memory: resourceToString(container.Resources.Requests[corev1.ResourceMemory]),
-					CPU:    resourceToString(container.Resources.Requests[corev1.ResourceCPU]),
+				requests := make(map[string]interface{})
+				if mem := resourceToString(container.Resources.Requests[corev1.ResourceMemory]); mem != "" {
+					requests["memory"] = mem
+				}
+				if cpu := resourceToString(container.Resources.Requests[corev1.ResourceCPU]); cpu != "" {
+					requests["cpu"] = cpu
+				}
+				if len(requests) > 0 {
+					resources["requests"] = requests
 				}
 			}
 			
 			if container.Resources.Limits != nil {
-				params.Resources.Limits = &crd.ResourceList{
-					Memory: resourceToString(container.Resources.Limits[corev1.ResourceMemory]),
-					CPU:    resourceToString(container.Resources.Limits[corev1.ResourceCPU]),
+				limits := make(map[string]interface{})
+				if mem := resourceToString(container.Resources.Limits[corev1.ResourceMemory]); mem != "" {
+					limits["memory"] = mem
 				}
+				if cpu := resourceToString(container.Resources.Limits[corev1.ResourceCPU]); cpu != "" {
+					limits["cpu"] = cpu
+				}
+				if len(limits) > 0 {
+					resources["limits"] = limits
+				}
+			}
+			
+			if len(resources) > 0 {
+				params["resources"] = resources
 			}
 		}
 	}
@@ -83,7 +97,7 @@ func extractFromDeployment(dep *appsv1.Deployment) *crd.ParameterSet {
 	return params
 }
 
-func extractFromStatefulSet(ss *appsv1.StatefulSet) *crd.ParameterSet {
+func extractFromStatefulSet(ss *appsv1.StatefulSet) map[string]interface{} {
 	params := extractFromDeployment(&appsv1.Deployment{
 		ObjectMeta: ss.ObjectMeta,
 		Spec: appsv1.DeploymentSpec{
@@ -97,7 +111,7 @@ func extractFromStatefulSet(ss *appsv1.StatefulSet) *crd.ParameterSet {
 		for _, vct := range ss.Spec.VolumeClaimTemplates {
 			if vct.Spec.Resources.Requests != nil {
 				if storage := vct.Spec.Resources.Requests[corev1.ResourceStorage]; !storage.IsZero() {
-					params.StorageSize = storage.String()
+					params["storageSize"] = storage.String()
 					break
 				}
 			}

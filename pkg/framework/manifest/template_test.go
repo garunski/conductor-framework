@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 	"text/template"
-
-	"github.com/garunski/conductor-framework/pkg/framework/crd"
 )
 
 func TestRenderTemplate_SprigStringFunctions(t *testing.T) {
@@ -14,9 +12,9 @@ func TestRenderTemplate_SprigStringFunctions(t *testing.T) {
 		template string
 		expected string
 	}{
-		{"upper", "{{ upper .ServiceName }}", "REDIS"},
-		{"lower", "{{ lower .ServiceName }}", "redis"},
-		{"title", "{{ title .ServiceName }}", "Redis"},
+		{"upper", "{{ upper \"redis\" }}", "REDIS"},
+		{"lower", "{{ lower \"REDIS\" }}", "redis"},
+		{"title", "{{ title \"redis\" }}", "Redis"},
 		{"trim", "{{ trim \"  test  \" }}", "test"},
 		{"trimPrefix", "{{ trimPrefix \"redis-\" \"redis-master\" }}", "master"},
 		{"trimSuffix", "{{ trimSuffix \"-service\" \"my-service\" }}", "my"},
@@ -29,13 +27,9 @@ func TestRenderTemplate_SprigStringFunctions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manifestBytes := []byte(tt.template)
-			params := &crd.ParameterSet{
-				Namespace:  "default",
-				NamePrefix: "",
-				Replicas:   int32Ptr(1),
-			}
+			spec := make(map[string]interface{})
 
-			result, err := RenderTemplate(manifestBytes, "redis", params, nil)
+			result, err := RenderTemplate(manifestBytes, "redis", spec, nil, nil)
 			if err != nil {
 				t.Fatalf("RenderTemplate() error = %v", err)
 			}
@@ -61,13 +55,9 @@ func TestRenderTemplate_SprigEncodingFunctions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manifestBytes := []byte(tt.template)
-			params := &crd.ParameterSet{
-				Namespace:  "default",
-				NamePrefix: "",
-				Replicas:   int32Ptr(1),
-			}
+			spec := make(map[string]interface{})
 
-			result, err := RenderTemplate(manifestBytes, "test", params, nil)
+			result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 			if err != nil {
 				t.Fatalf("RenderTemplate() error = %v", err)
 			}
@@ -86,7 +76,7 @@ func TestRenderTemplate_SprigMathFunctions(t *testing.T) {
 		template string
 		expected string
 	}{
-		{"add", "{{ add .Replicas 1 }}", "2"},
+		{"add", "{{ add 1 1 }}", "2"},
 		{"sub", "{{ sub 5 2 }}", "3"},
 		{"mul", "{{ mul 3 4 }}", "12"},
 		{"div", "{{ div 10 2 }}", "5"},
@@ -98,13 +88,9 @@ func TestRenderTemplate_SprigMathFunctions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manifestBytes := []byte(tt.template)
-			params := &crd.ParameterSet{
-				Namespace:  "default",
-				NamePrefix: "",
-				Replicas:   int32Ptr(1),
-			}
+			spec := make(map[string]interface{})
 
-			result, err := RenderTemplate(manifestBytes, "test", params, nil)
+			result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 			if err != nil {
 				t.Fatalf("RenderTemplate() error = %v", err)
 			}
@@ -137,13 +123,9 @@ func TestRenderTemplate_SprigListFunctions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manifestBytes := []byte(tt.template)
-			params := &crd.ParameterSet{
-				Namespace:  "default",
-				NamePrefix: "",
-				Replicas:   int32Ptr(1),
-			}
+			spec := make(map[string]interface{})
 
-			result, err := RenderTemplate(manifestBytes, "test", params, nil)
+			result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 			if err != nil {
 				t.Fatalf("RenderTemplate() error = %v", err)
 			}
@@ -165,20 +147,16 @@ func TestRenderTemplate_SprigDictFunctions(t *testing.T) {
 		{"dict", "{{ (dict \"key1\" \"value1\" \"key2\" \"value2\").key1 }}", "value1"},
 		{"get", "{{ get (dict \"key\" \"value\") \"key\" }}", "value"},
 		{"hasKey", "{{ hasKey (dict \"key\" \"value\") \"key\" }}", "true"},
-		{"keys", "{{ keys (dict \"a\" 1 \"b\" 2) | join \",\" }}", "a,b"},
-		{"merge", "{{ keys (merge (dict \"a\" 1) (dict \"b\" 2)) | join \",\" }}", "a,b"},
+		{"keys", "{{ keys (dict \"a\" 1 \"b\" 2) | sortAlpha | join \",\" }}", "a,b"},
+		{"merge", "{{ keys (merge (dict \"a\" 1) (dict \"b\" 2)) | sortAlpha | join \",\" }}", "a,b"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manifestBytes := []byte(tt.template)
-			params := &crd.ParameterSet{
-				Namespace:  "default",
-				NamePrefix: "",
-				Replicas:   int32Ptr(1),
-			}
+			spec := make(map[string]interface{})
 
-			result, err := RenderTemplate(manifestBytes, "test", params, nil)
+			result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 			if err != nil {
 				t.Fatalf("RenderTemplate() error = %v", err)
 			}
@@ -193,20 +171,16 @@ func TestRenderTemplate_SprigDictFunctions(t *testing.T) {
 
 func TestRenderTemplate_UUIDv5_Deterministic(t *testing.T) {
 	manifestBytes := []byte("{{ uuidv5 \"6ba7b810-9dad-11d1-80b4-00c04fd430c8\" \"test-name\" }}")
-	params := &crd.ParameterSet{
-		Namespace:  "default",
-		NamePrefix: "",
-		Replicas:   int32Ptr(1),
-	}
+	spec := make(map[string]interface{})
 
 	// First call
-	result1, err := RenderTemplate(manifestBytes, "test", params, nil)
+	result1, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
 
 	// Second call with same inputs
-	result2, err := RenderTemplate(manifestBytes, "test", params, nil)
+	result2, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -225,22 +199,18 @@ func TestRenderTemplate_UUIDv5_Deterministic(t *testing.T) {
 }
 
 func TestRenderTemplate_UUIDv5_DifferentInputs(t *testing.T) {
-	params := &crd.ParameterSet{
-		Namespace:  "default",
-		NamePrefix: "",
-		Replicas:   int32Ptr(1),
-	}
+	spec := make(map[string]interface{})
 
 	// Different names should produce different UUIDs
 	manifest1 := []byte("{{ uuidv5 \"6ba7b810-9dad-11d1-80b4-00c04fd430c8\" \"name1\" }}")
 	manifest2 := []byte("{{ uuidv5 \"6ba7b810-9dad-11d1-80b4-00c04fd430c8\" \"name2\" }}")
 
-	result1, err := RenderTemplate(manifest1, "test", params, nil)
+	result1, err := RenderTemplate(manifest1, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
 
-	result2, err := RenderTemplate(manifest2, "test", params, nil)
+	result2, err := RenderTemplate(manifest2, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -255,13 +225,9 @@ func TestRenderTemplate_UUIDv5_DifferentInputs(t *testing.T) {
 
 func TestRenderTemplate_UUIDv5_InvalidNamespace(t *testing.T) {
 	manifestBytes := []byte("{{ uuidv5 \"invalid-uuid\" \"test-name\" }}")
-	params := &crd.ParameterSet{
-		Namespace:  "default",
-		NamePrefix: "",
-		Replicas:   int32Ptr(1),
-	}
+	spec := make(map[string]interface{})
 
-	result, err := RenderTemplate(manifestBytes, "test", params, nil)
+	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() should not error on invalid namespace UUID: %v", err)
 	}
@@ -275,13 +241,9 @@ func TestRenderTemplate_UUIDv5_InvalidNamespace(t *testing.T) {
 
 func TestRenderTemplate_UUIDv5_EmptyNamespace(t *testing.T) {
 	manifestBytes := []byte("{{ uuidv5 \"\" \"test-name\" }}")
-	params := &crd.ParameterSet{
-		Namespace:  "default",
-		NamePrefix: "",
-		Replicas:   int32Ptr(1),
-	}
+	spec := make(map[string]interface{})
 
-	result, err := RenderTemplate(manifestBytes, "test", params, nil)
+	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -305,13 +267,9 @@ func TestRenderTemplate_CustomFunctionOverride(t *testing.T) {
 	}
 
 	manifestBytes := []byte("{{ upper \"test\" }}")
-	params := &crd.ParameterSet{
-		Namespace:  "default",
-		NamePrefix: "",
-		Replicas:   int32Ptr(1),
-	}
+	spec := make(map[string]interface{})
 
-	result, err := RenderTemplate(manifestBytes, "test", params, customFuncs)
+	result, err := RenderTemplate(manifestBytes, "test", spec, nil, customFuncs)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -332,13 +290,9 @@ func TestRenderTemplate_CustomFunctionAvailable(t *testing.T) {
 	}
 
 	manifestBytes := []byte("{{ customFunc \"test\" }}")
-	params := &crd.ParameterSet{
-		Namespace:  "default",
-		NamePrefix: "",
-		Replicas:   int32Ptr(1),
-	}
+	spec := make(map[string]interface{})
 
-	result, err := RenderTemplate(manifestBytes, "test", params, customFuncs)
+	result, err := RenderTemplate(manifestBytes, "test", spec, nil, customFuncs)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -356,7 +310,7 @@ func TestRenderTemplate_ExistingFunctions(t *testing.T) {
 		template string
 		expected string
 	}{
-		{"defaultIfEmpty", "{{ defaultIfEmpty .NamePrefix \"default\" }}", "default"},
+		{"defaultIfEmpty", "{{ defaultIfEmpty \"\" \"default\" }}", "default"},
 		{"prefixName", "{{ prefixName \"pre-\" \"name\" }}", "pre-name"},
 		{"hasPrefix", "{{ hasPrefix \"pre-\" \"pre-name\" }}", "true"},
 	}
@@ -364,13 +318,9 @@ func TestRenderTemplate_ExistingFunctions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manifestBytes := []byte(tt.template)
-			params := &crd.ParameterSet{
-				Namespace:  "default",
-				NamePrefix: "",
-				Replicas:   int32Ptr(1),
-			}
+			spec := make(map[string]interface{})
 
-			result, err := RenderTemplate(manifestBytes, "test", params, nil)
+			result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 			if err != nil {
 				t.Fatalf("RenderTemplate() error = %v", err)
 			}
@@ -385,14 +335,10 @@ func TestRenderTemplate_ExistingFunctions(t *testing.T) {
 
 func TestRenderTemplate_NilFunctionMap(t *testing.T) {
 	manifestBytes := []byte("{{ upper \"test\" }}")
-	params := &crd.ParameterSet{
-		Namespace:  "default",
-		NamePrefix: "",
-		Replicas:   int32Ptr(1),
-	}
+	spec := make(map[string]interface{})
 
 	// Should work with nil function map (uses defaults)
-	result, err := RenderTemplate(manifestBytes, "test", params, nil)
+	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() should work with nil function map: %v", err)
 	}
@@ -405,14 +351,10 @@ func TestRenderTemplate_NilFunctionMap(t *testing.T) {
 
 func TestRenderTemplate_EnvFunctionsExcluded(t *testing.T) {
 	manifestBytes := []byte("{{ env \"TEST_VAR\" }}")
-	params := &crd.ParameterSet{
-		Namespace:  "default",
-		NamePrefix: "",
-		Replicas:   int32Ptr(1),
-	}
+	spec := make(map[string]interface{})
 
 	// Should error because env function is excluded
-	_, err := RenderTemplate(manifestBytes, "test", params, nil)
+	_, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 	if err == nil {
 		t.Error("env function should be excluded and cause an error")
 	}
@@ -420,17 +362,193 @@ func TestRenderTemplate_EnvFunctionsExcluded(t *testing.T) {
 
 func TestRenderTemplate_ExpandenvFunctionsExcluded(t *testing.T) {
 	manifestBytes := []byte("{{ expandenv \"$TEST_VAR\" }}")
-	params := &crd.ParameterSet{
-		Namespace:  "default",
-		NamePrefix: "",
-		Replicas:   int32Ptr(1),
-	}
+	spec := make(map[string]interface{})
 
 	// Should error because expandenv function is excluded
-	_, err := RenderTemplate(manifestBytes, "test", params, nil)
+	_, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
 	if err == nil {
 		t.Error("expandenv function should be excluded and cause an error")
 	}
 }
 
+// New tests for the new functionality
 
+func TestRenderTemplate_SpecGlobalAccess(t *testing.T) {
+	manifestBytes := []byte("namespace: {{ .Spec.global.namespace }}")
+	spec := map[string]interface{}{
+		"global": map[string]interface{}{
+			"namespace": "test-namespace",
+		},
+	}
+
+	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate() error = %v", err)
+	}
+
+	resultStr := strings.TrimSpace(string(result))
+	expected := "namespace: test-namespace"
+	if resultStr != expected {
+		t.Errorf("RenderTemplate() = %v, want %v", resultStr, expected)
+	}
+}
+
+func TestRenderTemplate_SpecServicesAccess(t *testing.T) {
+	manifestBytes := []byte("replicas: {{ .Spec.services.frontend.replicas }}")
+	spec := map[string]interface{}{
+		"services": map[string]interface{}{
+			"frontend": map[string]interface{}{
+				"replicas": 3,
+			},
+		},
+	}
+
+	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate() error = %v", err)
+	}
+
+	resultStr := strings.TrimSpace(string(result))
+	expected := "replicas: 3"
+	if resultStr != expected {
+		t.Errorf("RenderTemplate() = %v, want %v", resultStr, expected)
+	}
+}
+
+func TestRenderTemplate_NestedConfigAccess(t *testing.T) {
+	// Use getService helper for hyphenated service names
+	manifestBytes := []byte("{{- $svc := getService \"api-service\" }}host: {{ $svc.config.database.host }}")
+	spec := map[string]interface{}{
+		"services": map[string]interface{}{
+			"api-service": map[string]interface{}{
+				"config": map[string]interface{}{
+					"database": map[string]interface{}{
+						"host": "redis-master",
+					},
+				},
+			},
+		},
+	}
+
+	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate() error = %v", err)
+	}
+
+	resultStr := strings.TrimSpace(string(result))
+	expected := "host: redis-master"
+	if resultStr != expected {
+		t.Errorf("RenderTemplate() = %v, want %v", resultStr, expected)
+	}
+}
+
+func TestRenderTemplate_GetServiceHelper(t *testing.T) {
+	manifestBytes := []byte("{{- $svc := getService \"otel-collector\" }}{{ if $svc }}found{{ else }}not found{{ end }}")
+	spec := map[string]interface{}{
+		"services": map[string]interface{}{
+			"otel-collector": map[string]interface{}{
+				"port": 4317,
+			},
+		},
+	}
+
+	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate() error = %v", err)
+	}
+
+	resultStr := strings.TrimSpace(string(result))
+	expected := "found"
+	if resultStr != expected {
+		t.Errorf("RenderTemplate() = %v, want %v", resultStr, expected)
+	}
+}
+
+func TestRenderTemplate_GetServiceHelperNotFound(t *testing.T) {
+	manifestBytes := []byte("{{- $svc := getService \"nonexistent\" }}{{ if $svc }}found{{ else }}not found{{ end }}")
+	spec := map[string]interface{}{
+		"services": map[string]interface{}{
+			"other-service": map[string]interface{}{},
+		},
+	}
+
+	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate() error = %v", err)
+	}
+
+	resultStr := strings.TrimSpace(string(result))
+	expected := "not found"
+	if resultStr != expected {
+		t.Errorf("RenderTemplate() = %v, want %v", resultStr, expected)
+	}
+}
+
+func TestRenderTemplate_FilesGet(t *testing.T) {
+	// Create a test filesystem
+	testFS := &FileSystem{
+		fs:       testManifests,
+		rootPath: "testdata",
+	}
+
+	manifestBytes := []byte("{{ .Files.Get \"test.yaml\" }}")
+	spec := make(map[string]interface{})
+
+	result, err := RenderTemplate(manifestBytes, "test", spec, testFS, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate() error = %v", err)
+	}
+
+	resultStr := string(result)
+	// Should contain content from test.yaml file
+	if !strings.Contains(resultStr, "apiVersion") {
+		t.Errorf("Files.Get() should return file content, got: %v", resultStr)
+	}
+}
+
+func TestRenderTemplate_FilesGetNotFound(t *testing.T) {
+	testFS := &FileSystem{
+		fs:       testManifests,
+		rootPath: "testdata",
+	}
+
+	manifestBytes := []byte("{{ .Files.Get \"nonexistent.yaml\" }}")
+	spec := make(map[string]interface{})
+
+	result, err := RenderTemplate(manifestBytes, "test", spec, testFS, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate() error = %v", err)
+	}
+
+	resultStr := strings.TrimSpace(string(result))
+	// Should return empty string for non-existent file
+	if resultStr != "" {
+		t.Errorf("Files.Get() should return empty string for non-existent file, got: %v", resultStr)
+	}
+}
+
+func TestRenderTemplate_CrossServiceReference(t *testing.T) {
+	// Use getService helper for hyphenated service names
+	manifestBytes := []byte("{{- $redis := getService \"redis-master\" }}redis-port: {{ $redis.port }}")
+	spec := map[string]interface{}{
+		"services": map[string]interface{}{
+			"redis-master": map[string]interface{}{
+				"port": 6379,
+			},
+			"frontend": map[string]interface{}{
+				"replicas": 3,
+			},
+		},
+	}
+
+	result, err := RenderTemplate(manifestBytes, "frontend", spec, nil, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate() error = %v", err)
+	}
+
+	resultStr := strings.TrimSpace(string(result))
+	expected := "redis-port: 6379"
+	if resultStr != expected {
+		t.Errorf("RenderTemplate() = %v, want %v", resultStr, expected)
+	}
+}

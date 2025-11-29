@@ -82,7 +82,7 @@ cfg := framework.Config{
     Port:               "8081",
     LogRetentionDays:   7,
     LogCleanupInterval: 1 * time.Hour,
-    CRDGroup:           "conductor.localmeadow.io",
+    CRDGroup:           "conductor.io",
     CRDVersion:         "v1alpha1",
     CRDResource:        "deploymentparameters",
     TemplateFuncs:      template.FuncMap{
@@ -415,7 +415,7 @@ The framework supports CRDs for parameter management.
 ### CRD Configuration
 
 ```go
-cfg.CRDGroup = "conductor.localmeadow.io"
+cfg.CRDGroup = "conductor.io"
 cfg.CRDVersion = "v1alpha1"
 cfg.CRDResource = "deploymentparameters"
 ```
@@ -427,7 +427,7 @@ Note: Parameter support is always enabled. If Kubernetes is unavailable, the fra
 The framework uses a `DeploymentParameters` CRD to manage deployment parameters:
 
 ```yaml
-apiVersion: conductor.localmeadow.io/v1alpha1
+apiVersion: conductor.io/v1alpha1
 kind: DeploymentParameters
 metadata:
   name: default

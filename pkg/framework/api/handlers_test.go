@@ -92,7 +92,7 @@ func newTestHandler(t *testing.T, opts ...testHandlerOption) (*Handler, error) {
 		corev1.AddToScheme(scheme)
 		appsv1.AddToScheme(scheme)
 		dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
-		cfg.parameterClient = crd.NewClient(dynamicClient, logger, "conductor.localmeadow.io", "v1alpha1", "deploymentparameters")
+		cfg.parameterClient = crd.NewClient(dynamicClient, logger, "conductor.io", "v1alpha1", "deploymentparameters")
 	}
 	
 	return NewHandler(cfg.store, cfg.eventStore, cfg.logger, cfg.reconcileCh, cfg.reconciler, cfg.appName, cfg.version, cfg.parameterClient, nil)

@@ -1,31 +1,38 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}redis-master
-  namespace: {{.Namespace}}
+  name: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}redis-master
+  namespace: {{if .Spec.Global.namespace}}{{.Spec.Global.namespace}}{{else}}default{{end}}
 spec:
-  replicas: 1
+  {{- $redisMaster := getService "redis-master"}}
+  replicas: {{if $redisMaster.replicas}}{{$redisMaster.replicas}}{{else}}1{{end}}
   selector:
     matchLabels:
-      app: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}redis
+      app: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}redis
       role: master
   template:
     metadata:
       labels:
-        app: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}redis
+        app: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}redis
         role: master
     spec:
+      {{- if .Spec.Global.imagePullSecrets}}
+      imagePullSecrets:
+      {{- range .Spec.Global.imagePullSecrets}}
+      - name: {{.name}}
+      {{- end}}
+      {{- end}}
       containers:
       - name: master
-        image: redis:{{if .ImageTag}}{{.ImageTag}}{{else}}6.0.5{{end}}
+        image: {{if .Spec.Global.imageRegistry}}{{.Spec.Global.imageRegistry}}/{{end}}redis:{{if $redisMaster.imageTag}}{{$redisMaster.imageTag}}{{else if .Spec.Global.imageTag}}{{.Spec.Global.imageTag}}{{else}}6.0.5{{end}}
         ports:
         - containerPort: 6379
           name: redis
         resources:
           requests:
-            memory: {{if and .Resources .Resources.Requests .Resources.Requests.Memory}}{{.Resources.Requests.Memory}}{{else}}"64Mi"{{end}}
-            cpu: {{if and .Resources .Resources.Requests .Resources.Requests.CPU}}{{.Resources.Requests.CPU}}{{else}}"100m"{{end}}
+            memory: {{if and $redisMaster.resources $redisMaster.resources.requests $redisMaster.resources.requests.memory}}{{$redisMaster.resources.requests.memory}}{{else if and .Spec.Global.resources .Spec.Global.resources.requests .Spec.Global.resources.requests.memory}}{{.Spec.Global.resources.requests.memory}}{{else}}"64Mi"{{end}}
+            cpu: {{if and $redisMaster.resources $redisMaster.resources.requests $redisMaster.resources.requests.cpu}}{{$redisMaster.resources.requests.cpu}}{{else if and .Spec.Global.resources .Spec.Global.resources.requests .Spec.Global.resources.requests.cpu}}{{.Spec.Global.resources.requests.cpu}}{{else}}"100m"{{end}}
           limits:
-            memory: {{if and .Resources .Resources.Limits .Resources.Limits.Memory}}{{.Resources.Limits.Memory}}{{else}}"256Mi"{{end}}
-            cpu: {{if and .Resources .Resources.Limits .Resources.Limits.CPU}}{{.Resources.Limits.CPU}}{{else}}"200m"{{end}}
+            memory: {{if and $redisMaster.resources $redisMaster.resources.limits $redisMaster.resources.limits.memory}}{{$redisMaster.resources.limits.memory}}{{else if and .Spec.Global.resources .Spec.Global.resources.limits .Spec.Global.resources.limits.memory}}{{.Spec.Global.resources.limits.memory}}{{else}}"256Mi"{{end}}
+            cpu: {{if and $redisMaster.resources $redisMaster.resources.limits $redisMaster.resources.limits.cpu}}{{$redisMaster.resources.limits.cpu}}{{else if and .Spec.Global.resources .Spec.Global.resources.limits .Spec.Global.resources.limits.cpu}}{{.Spec.Global.resources.limits.cpu}}{{else}}"200m"{{end}}
 

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <appSettings>
+    <add key="ApiEndpoint" value="http://api-service:8080" />
+    <add key="DatabaseHost" value="redis-master" />
+    <add key="DatabasePort" value="6379" />
+  </appSettings>
+</configuration>
+

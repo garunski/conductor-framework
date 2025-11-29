@@ -23,30 +23,24 @@ func (h *Handler) GetParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	defaultNamespace := "default"
 
-	params, err := h.parameterClient.Get(ctx, crd.DefaultName, defaultNamespace)
+	spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
 	if err != nil {
 		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_parameters_failed", err.Error(), nil)
 		return
 	}
 
-	if params == nil {
+	if spec == nil || len(spec) == 0 {
 		// Return default parameters if CRD doesn't exist
-		params = &crd.DeploymentParameters{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      crd.DefaultName,
-				Namespace: defaultNamespace,
-			},
-			Spec: crd.DeploymentParametersSpec{
-				Global: &crd.ParameterSet{
-					Namespace:  "default",
-					NamePrefix: "",
-					Replicas:   int32Ptr(1),
-				},
+		spec = map[string]interface{}{
+			"global": map[string]interface{}{
+				"namespace":  "default",
+				"namePrefix": "",
+				"replicas":   int32(1),
 			},
 		}
 	}
 
-	WriteJSONResponse(w, h.logger, http.StatusOK, params.Spec)
+	WriteJSONResponse(w, h.logger, http.StatusOK, spec)
 }
 
 // UpdateParameters creates or updates deployment parameters
@@ -54,17 +48,14 @@ func (h *Handler) UpdateParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	defaultNamespace := "default"
 
-	var req struct {
-		Global   *crd.ParameterSet            `json:"global"`
-		Services map[string]*crd.ParameterSet `json:"services"`
-	}
+	var spec map[string]interface{}
 
-	if err := h.parseJSONRequest(r, &req); err != nil {
+	if err := h.parseJSONRequest(r, &spec); err != nil {
 		WriteErrorResponse(w, h.logger, http.StatusBadRequest, "invalid_request", err.Error(), nil)
 		return
 	}
 
-	// Get existing parameters or create new
+	// Get existing parameters to check if it exists
 	params, err := h.parameterClient.Get(ctx, crd.DefaultName, defaultNamespace)
 	if err != nil {
 		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_parameters_failed", err.Error(), nil)
@@ -72,28 +63,23 @@ func (h *Handler) UpdateParameters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if params == nil {
-		params = &crd.DeploymentParameters{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      crd.DefaultName,
-				Namespace: defaultNamespace,
-			},
+		// Create new
+		if err := h.parameterClient.CreateWithSpec(ctx, crd.DefaultName, defaultNamespace, spec); err != nil {
+			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "create_parameters_failed", err.Error(), nil)
+			return
 		}
-	}
-
-	// Update spec
-	params.Spec.Global = req.Global
-	params.Spec.Services = req.Services
-
-	// Create or update
-	if err := h.parameterClient.CreateOrUpdate(ctx, params); err != nil {
-		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "update_parameters_failed", err.Error(), nil)
-		return
+	} else {
+		// Update existing
+		if err := h.parameterClient.UpdateSpec(ctx, crd.DefaultName, defaultNamespace, spec); err != nil {
+			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "update_parameters_failed", err.Error(), nil)
+			return
+		}
 	}
 
 	WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{"message": "Parameters updated successfully"})
 }
 
-// GetServiceParameters retrieves merged parameters for a specific service
+// GetServiceParameters retrieves parameters for a specific service from the spec
 func (h *Handler) GetServiceParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	serviceName := chi.URLParam(r, "service")
@@ -104,13 +90,22 @@ func (h *Handler) GetServiceParameters(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params, err := h.parameterClient.GetMergedParameters(ctx, serviceName, defaultNamespace)
+	spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
 	if err != nil {
 		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_service_parameters_failed", err.Error(), nil)
 		return
 	}
 
-	WriteJSONResponse(w, h.logger, http.StatusOK, params)
+	// Extract service from spec
+	var serviceParams interface{}
+	if spec != nil {
+		services, ok := spec["services"].(map[string]interface{})
+		if ok {
+			serviceParams = services[serviceName]
+		}
+	}
+
+	WriteJSONResponse(w, h.logger, http.StatusOK, serviceParams)
 }
 
 func int32Ptr(i int32) *int32 {
@@ -135,76 +130,43 @@ func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 		// Get merged/default values - always provide defaults even if cluster is unavailable
 		var merged map[string]interface{}
 		
-		// Try to get merged parameters, but don't fail if cluster is unavailable
-		mergedParams, err := h.parameterClient.GetMergedParameters(ctx, serviceName, defaultNamespace)
-		if err == nil && mergedParams != nil {
-			merged = map[string]interface{}{
-				"namespace":  getStringOrDefault(mergedParams.Namespace, "default"),
-				"namePrefix": mergedParams.NamePrefix,
-				"replicas":   getInt32Value(mergedParams.Replicas, 1),
-				"storageSize": mergedParams.StorageSize,
-				"imageTag":   mergedParams.ImageTag,
+		// Try to get spec, but don't fail if cluster is unavailable
+		spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
+		if err == nil && spec != nil {
+			// Merge global and service-specific parameters
+			merged = make(map[string]interface{})
+			
+			// Start with global defaults
+			if global, ok := spec["global"].(map[string]interface{}); ok {
+				for k, v := range global {
+					merged[k] = v
+				}
 			}
 			
-			if mergedParams.Resources != nil {
-				resources := make(map[string]interface{})
-				if mergedParams.Resources.Requests != nil {
-					resources["requests"] = map[string]interface{}{
-						"memory": mergedParams.Resources.Requests.Memory,
-						"cpu":    mergedParams.Resources.Requests.CPU,
+			// Apply service-specific overrides
+			if services, ok := spec["services"].(map[string]interface{}); ok {
+				if service, ok := services[serviceName].(map[string]interface{}); ok {
+					for k, v := range service {
+						merged[k] = v
 					}
-				}
-				if mergedParams.Resources.Limits != nil {
-					resources["limits"] = map[string]interface{}{
-						"memory": mergedParams.Resources.Limits.Memory,
-						"cpu":    mergedParams.Resources.Limits.CPU,
-					}
-				}
-				if len(resources) > 0 {
-					merged["resources"] = resources
 				}
 			}
 		}
 		
 		// If no merged params (cluster unavailable or no saved params), try to extract from manifests
-		if merged == nil {
+		if merged == nil || len(merged) == 0 {
 			// Try to get defaults from manifests
 			manifestYAML, err := h.findServiceManifests(serviceName)
 			if err == nil && manifestYAML != nil {
 				manifestDefaults, err := manifest.ExtractDefaultsFromManifest(manifestYAML, serviceName)
 				if err == nil && manifestDefaults != nil {
-					// Convert manifest defaults to merged map format
-					merged = map[string]interface{}{
-						"namespace":  getStringOrDefault(manifestDefaults.Namespace, "default"),
-						"namePrefix": manifestDefaults.NamePrefix,
-						"replicas":   getInt32Value(manifestDefaults.Replicas, 1),
-						"storageSize": manifestDefaults.StorageSize,
-						"imageTag":   manifestDefaults.ImageTag,
-					}
-					
-					if manifestDefaults.Resources != nil {
-						resources := make(map[string]interface{})
-						if manifestDefaults.Resources.Requests != nil {
-							resources["requests"] = map[string]interface{}{
-								"memory": manifestDefaults.Resources.Requests.Memory,
-								"cpu":    manifestDefaults.Resources.Requests.CPU,
-							}
-						}
-						if manifestDefaults.Resources.Limits != nil {
-							resources["limits"] = map[string]interface{}{
-								"memory": manifestDefaults.Resources.Limits.Memory,
-								"cpu":    manifestDefaults.Resources.Limits.CPU,
-							}
-						}
-						if len(resources) > 0 {
-							merged["resources"] = resources
-						}
-					}
+					// manifestDefaults is already a map[string]interface{}
+					merged = manifestDefaults
 				}
 			}
 			
 			// Fall back to hardcoded defaults if manifest extraction failed
-			if merged == nil {
+			if merged == nil || len(merged) == 0 {
 				merged = map[string]interface{}{
 					"namespace":  "default",
 					"namePrefix": "",
@@ -236,19 +198,6 @@ func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 	WriteJSONResponse(w, h.logger, http.StatusOK, result)
 }
 
-func getStringOrDefault(value, defaultValue string) string {
-	if value == "" {
-		return defaultValue
-	}
-	return value
-}
-
-func getInt32Value(ptr *int32, defaultValue int32) int32 {
-	if ptr == nil {
-		return defaultValue
-	}
-	return *ptr
-}
 
 // findServiceManifests searches for manifests matching the service name
 // Returns the manifest YAML bytes, preferring StatefulSet over Deployment if both exist

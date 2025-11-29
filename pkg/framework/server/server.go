@@ -87,10 +87,10 @@ func NewServer(cfg *Config, logger logr.Logger, manifests map[string][]byte) (*S
 				Namespace: defaultNamespace,
 			},
 			Spec: crd.DeploymentParametersSpec{
-				Global: &crd.ParameterSet{
-					Namespace:  "default",
-					NamePrefix: "",
-					Replicas:   int32Ptr(1),
+				"global": map[string]interface{}{
+					"namespace":  "default",
+					"namePrefix": "",
+					"replicas":   int32(1),
 				},
 			},
 		}

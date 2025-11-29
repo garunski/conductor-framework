@@ -1,0 +1,118 @@
+apiVersion: conductor.io/v1alpha1
+kind: DeploymentParameters
+metadata:
+  name: default
+  namespace: guestbook-conductor
+spec:
+  global:
+    namespace: guestbook-conductor
+    namePrefix: "gb-"
+    imageRegistry: "gcr.io/google_samples"
+    imagePullSecrets:
+    - name: my-registry-secret
+    storageClassName: "local-path"
+    keepPVC: true
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
+  services:
+    frontend:
+      replicas: 3
+      imageTag: "v5"
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "200m"
+        limits:
+          memory: "256Mi"
+          cpu: "400m"
+      config:
+        env: "production"
+        debug: false
+    redis-master:
+      replicas: 1
+      imageTag: "6.0.5"
+      port: 6379
+      persistence:
+        enabled: true
+        size: "1Gi"
+      config:
+        maxmemory: "256mb"
+        maxmemory-policy: "allkeys-lru"
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "100m"
+        limits:
+          memory: "256Mi"
+          cpu: "200m"
+    redis-slave:
+      replicas: 2
+      imageTag: "v3"
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "100m"
+        limits:
+          memory: "128Mi"
+          cpu: "200m"
+    api-service:
+      replicas: 2
+      image: "api-server"
+      imageTag: "v1.2.3"
+      port: 8080
+      config:
+        database:
+          host: "redis-master"
+          port: 6379
+        features:
+          caching: true
+          metrics: true
+      ingress:
+        enabled: true
+        host: "api.example.com"
+        tls:
+          enabled: true
+          secretName: "api-tls"
+        annotations:
+          cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      service:
+        type: "ClusterIP"
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 8080
+        initialDelaySeconds: 30
+      readinessProbe:
+        httpGet:
+          path: /readyz
+          port: 8080
+        initialDelaySeconds: 5
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "200m"
+        limits:
+          memory: "256Mi"
+          cpu: "500m"
+    "web-app":
+      replicas: 1
+      imageTag: "latest"
+      config:
+        apiEndpoint: "http://api-service:8080"
+        features:
+          sso: true
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "100m"
+        limits:
+          memory: "128Mi"
+          cpu: "200m"
+

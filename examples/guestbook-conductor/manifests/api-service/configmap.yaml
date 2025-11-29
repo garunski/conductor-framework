@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}api-service-config
+  namespace: {{if .Spec.Global.namespace}}{{.Spec.Global.namespace}}{{else}}default{{end}}
+data:
+  config.yaml: |
+    {{- $apiService := getService "api-service"}}
+    {{- $redisMaster := getService "redis-master"}}
+    {{- if $apiService.config}}
+    database:
+      host: {{if $apiService.config.database.host}}{{$apiService.config.database.host}}{{else if $redisMaster}}{{$redisMaster.port | default "redis-master"}}{{else}}redis-master{{end}}
+      port: {{if $apiService.config.database.port}}{{$apiService.config.database.port}}{{else if $redisMaster.port}}{{$redisMaster.port}}{{else}}6379{{end}}
+    {{- if $apiService.config.features}}
+    features:
+      caching: {{if $apiService.config.features.caching}}{{$apiService.config.features.caching}}{{else}}false{{end}}
+      metrics: {{if $apiService.config.features.metrics}}{{$apiService.config.features.metrics}}{{else}}false{{end}}
+    {{- end}}
+    {{- end}}
+  config-template.xml: |
+{{- $content := .Files.Get "api-service/config-template.xml"}}
+{{- if $content}}
+{{$content | indent 4}}
+{{- else}}
+    <?xml version="1.0" encoding="UTF-8"?>
+    <configuration>
+      <appSettings>
+        <add key="ApiEndpoint" value="http://api-service:8080" />
+      </appSettings>
+    </configuration>
+{{- end}}
+

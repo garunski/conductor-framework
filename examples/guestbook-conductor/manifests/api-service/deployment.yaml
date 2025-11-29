@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}api-service
+  namespace: {{if .Spec.Global.namespace}}{{.Spec.Global.namespace}}{{else}}default{{end}}
+spec:
+  {{- $apiService := getService "api-service"}}
+  {{- $redisMaster := getService "redis-master"}}
+  replicas: {{if $apiService.replicas}}{{$apiService.replicas}}{{else if .Spec.Global.replicas}}{{.Spec.Global.replicas}}{{else}}1{{end}}
+  selector:
+    matchLabels:
+      app: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}api-service
+  template:
+    metadata:
+      labels:
+        app: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}api-service
+    spec:
+      {{- if .Spec.Global.imagePullSecrets}}
+      imagePullSecrets:
+      {{- range .Spec.Global.imagePullSecrets}}
+      - name: {{.name}}
+      {{- end}}
+      {{- end}}
+      containers:
+      - name: api-server
+        image: {{if .Spec.Global.imageRegistry}}{{.Spec.Global.imageRegistry}}/{{end}}{{if $apiService.image}}{{$apiService.image}}{{else}}api-server{{end}}:{{if $apiService.imageTag}}{{$apiService.imageTag}}{{else if .Spec.Global.imageTag}}{{.Spec.Global.imageTag}}{{else}}latest{{end}}
+        ports:
+        - containerPort: {{if $apiService.port}}{{$apiService.port}}{{else}}8080{{end}}
+          name: http
+        env:
+        {{- if $apiService.config.database}}
+        - name: DB_HOST
+          value: {{if $apiService.config.database.host}}{{$apiService.config.database.host}}{{else if $redisMaster}}{{$redisMaster.port | default "redis-master"}}{{else}}redis-master{{end}}
+        - name: DB_PORT
+          value: {{if $apiService.config.database.port}}{{$apiService.config.database.port | toString}}{{else if $redisMaster.port}}{{$redisMaster.port | toString}}{{else}}"6379"{{end}}
+        {{- end}}
+        {{- if $apiService.config.features}}
+        - name: ENABLE_CACHING
+          value: {{if $apiService.config.features.caching}}{{$apiService.config.features.caching | toString}}{{else}}"false"{{end}}
+        - name: ENABLE_METRICS
+          value: {{if $apiService.config.features.metrics}}{{$apiService.config.features.metrics | toString}}{{else}}"false"{{end}}
+        {{- end}}
+        {{- if $apiService.livenessProbe}}
+        livenessProbe:
+          httpGet:
+            path: {{if $apiService.livenessProbe.httpGet.path}}{{$apiService.livenessProbe.httpGet.path}}{{else}}/healthz{{end}}
+            port: {{if $apiService.livenessProbe.httpGet.port}}{{$apiService.livenessProbe.httpGet.port}}{{else}}{{if $apiService.port}}{{$apiService.port}}{{else}}8080{{end}}{{end}}
+          initialDelaySeconds: {{if $apiService.livenessProbe.initialDelaySeconds}}{{$apiService.livenessProbe.initialDelaySeconds}}{{else}}30{{end}}
+        {{- end}}
+        {{- if $apiService.readinessProbe}}
+        readinessProbe:
+          httpGet:
+            path: {{if $apiService.readinessProbe.httpGet.path}}{{$apiService.readinessProbe.httpGet.path}}{{else}}/readyz{{end}}
+            port: {{if $apiService.readinessProbe.httpGet.port}}{{$apiService.readinessProbe.httpGet.port}}{{else}}{{if $apiService.port}}{{$apiService.port}}{{else}}8080{{end}}{{end}}
+          initialDelaySeconds: {{if $apiService.readinessProbe.initialDelaySeconds}}{{$apiService.readinessProbe.initialDelaySeconds}}{{else}}5{{end}}
+        {{- end}}
+        resources:
+          requests:
+            memory: {{if and $apiService.resources $apiService.resources.requests $apiService.resources.requests.memory}}{{$apiService.resources.requests.memory}}{{else if and .Spec.Global.resources .Spec.Global.resources.requests .Spec.Global.resources.requests.memory}}{{.Spec.Global.resources.requests.memory}}{{else}}"128Mi"{{end}}
+            cpu: {{if and $apiService.resources $apiService.resources.requests $apiService.resources.requests.cpu}}{{$apiService.resources.requests.cpu}}{{else if and .Spec.Global.resources .Spec.Global.resources.requests .Spec.Global.resources.requests.cpu}}{{.Spec.Global.resources.requests.cpu}}{{else}}"100m"{{end}}
+          limits:
+            memory: {{if and $apiService.resources $apiService.resources.limits $apiService.resources.limits.memory}}{{$apiService.resources.limits.memory}}{{else if and .Spec.Global.resources .Spec.Global.resources.limits .Spec.Global.resources.limits.memory}}{{.Spec.Global.resources.limits.memory}}{{else}}"256Mi"{{end}}
+            cpu: {{if and $apiService.resources $apiService.resources.limits $apiService.resources.limits.cpu}}{{$apiService.resources.limits.cpu}}{{else if and .Spec.Global.resources .Spec.Global.resources.limits .Spec.Global.resources.limits.cpu}}{{.Spec.Global.resources.limits.cpu}}{{else}}"500m"{{end}}

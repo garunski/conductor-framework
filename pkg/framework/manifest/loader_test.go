@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"strings"
 	"text/template"
 	"testing"
 )
@@ -362,6 +363,102 @@ func TestLoadEmbeddedManifests_WithNilFunctions(t *testing.T) {
 
 	if len(manifests) == 0 {
 		t.Error("LoadEmbeddedManifests() with nil functions should load manifests")
+	}
+}
+
+func TestLoadEmbeddedManifests_WithParameterGetter(t *testing.T) {
+	ctx := context.Background()
+	
+	// Create a parameter getter that returns a spec
+	parameterGetter := func(ctx context.Context) (map[string]interface{}, error) {
+		return map[string]interface{}{
+			"global": map[string]interface{}{
+				"namespace":  "test-namespace",
+				"namePrefix": "test-",
+			},
+			"services": map[string]interface{}{
+				"test-service": map[string]interface{}{
+					"replicas": 3,
+				},
+			},
+		}, nil
+	}
+
+	manifests, err := LoadEmbeddedManifests(testManifests, "testdata", ctx, parameterGetter, nil)
+	if err != nil {
+		t.Fatalf("LoadEmbeddedManifests() with parameterGetter error = %v", err)
+	}
+
+	if len(manifests) == 0 {
+		t.Error("LoadEmbeddedManifests() with parameterGetter should load manifests")
+	}
+}
+
+func TestLoadEmbeddedManifests_WithParameterGetterError(t *testing.T) {
+	ctx := context.Background()
+	
+	// Create a parameter getter that returns an error
+	parameterGetter := func(ctx context.Context) (map[string]interface{}, error) {
+		return nil, fmt.Errorf("test error")
+	}
+
+	// Should still work, just use empty spec
+	manifests, err := LoadEmbeddedManifests(testManifests, "testdata", ctx, parameterGetter, nil)
+	if err != nil {
+		t.Fatalf("LoadEmbeddedManifests() with parameterGetter error should not fail: %v", err)
+	}
+
+	if len(manifests) == 0 {
+		t.Error("LoadEmbeddedManifests() should still load manifests even if parameterGetter fails")
+	}
+}
+
+func TestLoadEmbeddedManifests_SkipsEmptyTemplates(t *testing.T) {
+	// Test that empty YAML is properly handled
+	emptyYAML := []byte("")
+	_, err := extractKeyFromYAML(emptyYAML)
+	if err == nil {
+		t.Error("extractKeyFromYAML() should fail on empty YAML")
+	}
+	
+	// Test whitespace-only YAML
+	whitespaceYAML := []byte("   \n\t  \n  ")
+	_, err = extractKeyFromYAML(whitespaceYAML)
+	if err == nil {
+		t.Error("extractKeyFromYAML() should fail on whitespace-only YAML")
+	}
+	
+	// Test that a template that conditionally renders content produces empty when condition is false
+	conditionalTemplate := `{{- if .Spec.services.test.enabled}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: test
+{{- end}}`
+	
+	// Render with enabled=false (should produce empty/whitespace)
+	spec := map[string]interface{}{
+		"services": map[string]interface{}{
+			"test": map[string]interface{}{
+				"enabled": false,
+			},
+		},
+	}
+	
+	fileSystem := &FileSystem{
+		fs:       testManifests,
+		rootPath: "testdata",
+	}
+	
+	rendered, err := RenderTemplate([]byte(conditionalTemplate), "test", spec, fileSystem, nil)
+	if err != nil {
+		t.Fatalf("RenderTemplate() error = %v", err)
+	}
+	
+	// Should be empty or whitespace only
+	trimmed := strings.TrimSpace(string(rendered))
+	if trimmed != "" {
+		t.Errorf("Expected empty template when condition is false, got: %q", trimmed)
 	}
 }
 

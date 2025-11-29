@@ -1,0 +1,32 @@
+{{- $apiService := getService "api-service"}}
+{{- if $apiService.ingress.enabled}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}api-service
+  namespace: {{if .Spec.Global.namespace}}{{.Spec.Global.namespace}}{{else}}default{{end}}
+  {{- if $apiService.ingress.annotations}}
+  annotations:
+  {{- range $key, $value := $apiService.ingress.annotations}}
+    {{$key}}: {{$value}}
+  {{- end}}
+  {{- end}}
+spec:
+  {{- if $apiService.ingress.tls.enabled}}
+  tls:
+  - hosts:
+    - {{if $apiService.ingress.host}}{{$apiService.ingress.host}}{{else}}api.example.com{{end}}
+    secretName: {{if $apiService.ingress.tls.secretName}}{{$apiService.ingress.tls.secretName}}{{else}}api-tls{{end}}
+  {{- end}}
+  rules:
+  - host: {{if $apiService.ingress.host}}{{$apiService.ingress.host}}{{else}}api.example.com{{end}}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}api-service
+            port:
+              number: {{if $apiService.port}}{{$apiService.port}}{{else}}8080{{end}}
+{{- end}}

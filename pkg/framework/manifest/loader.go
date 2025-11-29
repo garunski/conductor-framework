@@ -9,12 +9,11 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/garunski/conductor-framework/pkg/framework/crd"
 	"gopkg.in/yaml.v3"
 )
 
-// ParameterGetter is a function type that retrieves parameters for a service
-type ParameterGetter func(ctx context.Context, serviceName string) (*crd.ParameterSet, error)
+// ParameterGetter is a function type that retrieves the full CRD spec
+type ParameterGetter func(ctx context.Context) (map[string]interface{}, error)
 
 // LoadEmbeddedManifests loads and optionally renders templates for embedded manifests
 // If parameterGetter is nil, manifests are loaded without templating
@@ -35,6 +34,26 @@ func LoadEmbeddedManifests(files embed.FS, rootPath string, ctx context.Context,
 		return manifests, nil
 	}
 
+	// Get full spec once at the start (not per-service)
+	var spec map[string]interface{}
+	if parameterGetter != nil {
+		var err error
+		spec, err = parameterGetter(ctx)
+		if err != nil {
+			// If parameter getter fails (e.g., no Kubernetes connection),
+			// fall back to empty spec which will use defaults in templates
+			spec = make(map[string]interface{})
+		}
+	} else {
+		spec = make(map[string]interface{})
+	}
+
+	// Create FileSystem instance for .Files.Get() support
+	fileSystem := &FileSystem{
+		fs:       files,
+		rootPath: rootPath,
+	}
+
 	err = fs.WalkDir(files, rootPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -53,24 +72,19 @@ func LoadEmbeddedManifests(files embed.FS, rootPath string, ctx context.Context,
 			return fmt.Errorf("failed to read %s: %w", path, err)
 		}
 
-		// Extract service name from path using rootPath
+		// Extract service name from path using rootPath (for potential future use or logging)
 		serviceName := extractServiceName(path, rootPath)
 
-		// Render template if parameterGetter is provided
-		// If parameterGetter fails, fall back to default parameters
-		if parameterGetter != nil {
-			params, err := parameterGetter(ctx, serviceName)
-			if err != nil {
-				// If parameter getter fails (e.g., no Kubernetes connection),
-				// fall back to nil params which will use defaults in RenderTemplate
-				params = nil
-			}
+		// Render template with full spec and filesystem
+		rendered, err := RenderTemplate(data, serviceName, spec, fileSystem, templateFuncs)
+		if err != nil {
+			return fmt.Errorf("failed to render template for %s: %w", path, err)
+		}
+		data = rendered
 
-			rendered, err := RenderTemplate(data, serviceName, params, templateFuncs)
-			if err != nil {
-				return fmt.Errorf("failed to render template for %s: %w", path, err)
-			}
-			data = rendered
+		// Skip empty or whitespace-only rendered templates (e.g., conditional manifests that are disabled)
+		if strings.TrimSpace(string(data)) == "" {
+			return nil
 		}
 
 		key, err := extractKeyFromYAML(data)

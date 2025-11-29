@@ -14,7 +14,7 @@ import (
 
 const (
 	// DefaultCRDGroup is the default CRD group name
-	DefaultCRDGroup = "conductor.localmeadow.io"
+	DefaultCRDGroup = "conductor.io"
 	// DefaultCRDVersion is the default CRD version
 	DefaultCRDVersion = "v1alpha1"
 	// DefaultCRDResource is the default CRD resource name
@@ -23,37 +23,9 @@ const (
 	DefaultName = "default"
 )
 
-// ResourceRequirements represents resource requests and limits
-type ResourceRequirements struct {
-	Requests *ResourceList `json:"requests,omitempty"`
-	Limits   *ResourceList `json:"limits,omitempty"`
-}
-
-// ResourceList represents memory and CPU resources
-type ResourceList struct {
-	Memory string `json:"memory,omitempty"`
-	CPU    string `json:"cpu,omitempty"`
-}
-
-// ParameterSet represents a set of deployment parameters
-type ParameterSet struct {
-	Namespace    string                `json:"namespace,omitempty"`
-	NamePrefix   string                `json:"namePrefix,omitempty"`
-	Replicas     *int32                `json:"replicas,omitempty"`
-	ImageTag     string                `json:"imageTag,omitempty"`
-	Resources    *ResourceRequirements `json:"resources,omitempty"`
-	StorageSize  string                `json:"storageSize,omitempty"`
-	Labels       map[string]string     `json:"labels,omitempty"`
-	Annotations  map[string]string     `json:"annotations,omitempty"`
-	NodeSelector map[string]string     `json:"nodeSelector,omitempty"`
-	Tolerations  []interface{}         `json:"tolerations,omitempty"`
-}
-
 // DeploymentParametersSpec represents the spec of DeploymentParameters CRD
-type DeploymentParametersSpec struct {
-	Global   *ParameterSet            `json:"global,omitempty"`
-	Services map[string]*ParameterSet `json:"services,omitempty"`
-}
+// Stored as map[string]interface{} to preserve all fields dynamically
+type DeploymentParametersSpec map[string]interface{}
 
 // DeploymentParameters represents the DeploymentParameters CRD
 type DeploymentParameters struct {
@@ -115,6 +87,32 @@ func (c *Client) Get(ctx context.Context, name, namespace string) (*DeploymentPa
 	return c.unstructuredToDeploymentParameters(obj)
 }
 
+// GetSpec retrieves the spec as map[string]interface{} for template rendering
+func (c *Client) GetSpec(ctx context.Context, name, namespace string) (map[string]interface{}, error) {
+	resourceInterface := c.dynamicClient.Resource(c.gvr).Namespace(namespace)
+	
+	obj, err := resourceInterface.Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return make(map[string]interface{}), nil
+		}
+		return nil, fmt.Errorf("failed to get DeploymentParameters %s/%s: %w", namespace, name, err)
+	}
+
+	// Extract spec directly from unstructured object
+	specRaw, ok := obj.Object["spec"]
+	if !ok {
+		return make(map[string]interface{}), nil
+	}
+
+	specMap, ok := specRaw.(map[string]interface{})
+	if !ok {
+		return make(map[string]interface{}), nil
+	}
+
+	return specMap, nil
+}
+
 // Create creates a new DeploymentParameters instance
 func (c *Client) Create(ctx context.Context, params *DeploymentParameters) error {
 	resourceInterface := c.dynamicClient.Resource(c.gvr).Namespace(params.Namespace)
@@ -129,6 +127,27 @@ func (c *Client) Create(ctx context.Context, params *DeploymentParameters) error
 	return nil
 }
 
+// CreateWithSpec creates a new DeploymentParameters instance with a spec map
+func (c *Client) CreateWithSpec(ctx context.Context, name, namespace string, spec map[string]interface{}) error {
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   c.group,
+		Version: c.version,
+		Kind:    "DeploymentParameters",
+	})
+	obj.SetName(name)
+	obj.SetNamespace(namespace)
+	obj.Object["spec"] = spec
+
+	resourceInterface := c.dynamicClient.Resource(c.gvr).Namespace(namespace)
+	_, err := resourceInterface.Create(ctx, obj, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create DeploymentParameters %s/%s: %w", namespace, name, err)
+	}
+
+	return nil
+}
+
 // Update updates an existing DeploymentParameters instance
 func (c *Client) Update(ctx context.Context, params *DeploymentParameters) error {
 	resourceInterface := c.dynamicClient.Resource(c.gvr).Namespace(params.Namespace)
@@ -138,6 +157,27 @@ func (c *Client) Update(ctx context.Context, params *DeploymentParameters) error
 	_, err := resourceInterface.Update(ctx, obj, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to update DeploymentParameters %s/%s: %w", params.Namespace, params.Name, err)
+	}
+
+	return nil
+}
+
+// UpdateSpec updates the spec of an existing DeploymentParameters instance
+func (c *Client) UpdateSpec(ctx context.Context, name, namespace string, spec map[string]interface{}) error {
+	resourceInterface := c.dynamicClient.Resource(c.gvr).Namespace(namespace)
+	
+	// Get existing object to preserve metadata
+	obj, err := resourceInterface.Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get DeploymentParameters %s/%s: %w", namespace, name, err)
+	}
+
+	// Update spec
+	obj.Object["spec"] = spec
+
+	_, err = resourceInterface.Update(ctx, obj, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update DeploymentParameters %s/%s: %w", namespace, name, err)
 	}
 
 	return nil
@@ -165,44 +205,6 @@ func (c *Client) List(ctx context.Context, namespace string) ([]DeploymentParame
 	return result, nil
 }
 
-// GetMergedParameters returns merged parameters for a specific service
-// It merges global defaults with service-specific overrides
-func (c *Client) GetMergedParameters(ctx context.Context, serviceName, namespace string) (*ParameterSet, error) {
-	params, err := c.Get(ctx, DefaultName, namespace)
-	if err != nil {
-		return nil, err
-	}
-
-	if params == nil {
-		// Return default parameter set if CRD doesn't exist
-		return &ParameterSet{
-			Namespace:  "default",
-			NamePrefix: "",
-			Replicas:   int32Ptr(1),
-		}, nil
-	}
-
-	merged := &ParameterSet{}
-
-	// Start with global defaults
-	if params.Spec.Global != nil {
-		merged = deepCopyParameterSet(params.Spec.Global)
-	} else {
-		// Set defaults if global is not set
-		merged.Namespace = "default"
-		merged.NamePrefix = ""
-		merged.Replicas = int32Ptr(1)
-	}
-
-	// Apply service-specific overrides
-	if params.Spec.Services != nil {
-		if serviceOverrides, ok := params.Spec.Services[serviceName]; ok && serviceOverrides != nil {
-			mergeParameterSet(merged, serviceOverrides)
-		}
-	}
-
-	return merged, nil
-}
 
 // CreateOrUpdate creates or updates a DeploymentParameters instance
 func (c *Client) CreateOrUpdate(ctx context.Context, params *DeploymentParameters) error {
@@ -222,148 +224,6 @@ func (c *Client) CreateOrUpdate(ctx context.Context, params *DeploymentParameter
 
 // Helper functions
 
-func int32Ptr(i int32) *int32 {
-	return &i
-}
-
-func deepCopyParameterSet(src *ParameterSet) *ParameterSet {
-	if src == nil {
-		return nil
-	}
-
-	dst := &ParameterSet{
-		Namespace:   src.Namespace,
-		NamePrefix:  src.NamePrefix,
-		ImageTag:    src.ImageTag,
-		StorageSize: src.StorageSize,
-	}
-
-	if src.Replicas != nil {
-		dst.Replicas = int32Ptr(*src.Replicas)
-	}
-
-	if src.Resources != nil {
-		dst.Resources = &ResourceRequirements{}
-		if src.Resources.Requests != nil {
-			dst.Resources.Requests = &ResourceList{
-				Memory: src.Resources.Requests.Memory,
-				CPU:    src.Resources.Requests.CPU,
-			}
-		}
-		if src.Resources.Limits != nil {
-			dst.Resources.Limits = &ResourceList{
-				Memory: src.Resources.Limits.Memory,
-				CPU:    src.Resources.Limits.CPU,
-			}
-		}
-	}
-
-	if src.Labels != nil {
-		dst.Labels = make(map[string]string)
-		for k, v := range src.Labels {
-			dst.Labels[k] = v
-		}
-	}
-
-	if src.Annotations != nil {
-		dst.Annotations = make(map[string]string)
-		for k, v := range src.Annotations {
-			dst.Annotations[k] = v
-		}
-	}
-
-	if src.NodeSelector != nil {
-		dst.NodeSelector = make(map[string]string)
-		for k, v := range src.NodeSelector {
-			dst.NodeSelector[k] = v
-		}
-	}
-
-	if src.Tolerations != nil {
-		dst.Tolerations = make([]interface{}, len(src.Tolerations))
-		copy(dst.Tolerations, src.Tolerations)
-	}
-
-	return dst
-}
-
-func mergeParameterSet(dst *ParameterSet, src *ParameterSet) {
-	if src.Namespace != "" {
-		dst.Namespace = src.Namespace
-	}
-	if src.NamePrefix != "" {
-		dst.NamePrefix = src.NamePrefix
-	}
-	if src.Replicas != nil {
-		dst.Replicas = int32Ptr(*src.Replicas)
-	}
-	if src.ImageTag != "" {
-		dst.ImageTag = src.ImageTag
-	}
-	if src.StorageSize != "" {
-		dst.StorageSize = src.StorageSize
-	}
-
-	if src.Resources != nil {
-		if dst.Resources == nil {
-			dst.Resources = &ResourceRequirements{}
-		}
-		if src.Resources.Requests != nil {
-			if dst.Resources.Requests == nil {
-				dst.Resources.Requests = &ResourceList{}
-			}
-			if src.Resources.Requests.Memory != "" {
-				dst.Resources.Requests.Memory = src.Resources.Requests.Memory
-			}
-			if src.Resources.Requests.CPU != "" {
-				dst.Resources.Requests.CPU = src.Resources.Requests.CPU
-			}
-		}
-		if src.Resources.Limits != nil {
-			if dst.Resources.Limits == nil {
-				dst.Resources.Limits = &ResourceList{}
-			}
-			if src.Resources.Limits.Memory != "" {
-				dst.Resources.Limits.Memory = src.Resources.Limits.Memory
-			}
-			if src.Resources.Limits.CPU != "" {
-				dst.Resources.Limits.CPU = src.Resources.Limits.CPU
-			}
-		}
-	}
-
-	if src.Labels != nil {
-		if dst.Labels == nil {
-			dst.Labels = make(map[string]string)
-		}
-		for k, v := range src.Labels {
-			dst.Labels[k] = v
-		}
-	}
-
-	if src.Annotations != nil {
-		if dst.Annotations == nil {
-			dst.Annotations = make(map[string]string)
-		}
-		for k, v := range src.Annotations {
-			dst.Annotations[k] = v
-		}
-	}
-
-	if src.NodeSelector != nil {
-		if dst.NodeSelector == nil {
-			dst.NodeSelector = make(map[string]string)
-		}
-		for k, v := range src.NodeSelector {
-			dst.NodeSelector[k] = v
-		}
-	}
-
-	if src.Tolerations != nil {
-		dst.Tolerations = src.Tolerations
-	}
-}
-
 func (c *Client) deploymentParametersToUnstructured(params *DeploymentParameters) *unstructured.Unstructured {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(schema.GroupVersionKind{
@@ -377,89 +237,16 @@ func (c *Client) deploymentParametersToUnstructured(params *DeploymentParameters
 		obj.SetResourceVersion(params.ResourceVersion)
 	}
 
-	// Convert spec to unstructured
-	spec := make(map[string]interface{})
-	if params.Spec.Global != nil {
-		spec["global"] = c.parameterSetToMap(params.Spec.Global)
+	// Spec is already a map[string]interface{}, use it directly
+	if params.Spec != nil {
+		obj.Object["spec"] = params.Spec
+	} else {
+		obj.Object["spec"] = make(map[string]interface{})
 	}
-	if params.Spec.Services != nil && len(params.Spec.Services) > 0 {
-		services := make(map[string]interface{})
-		for k, v := range params.Spec.Services {
-			services[k] = c.parameterSetToMap(v)
-		}
-		spec["services"] = services
-	}
-	obj.Object["spec"] = spec
 
 	return obj
 }
 
-func (c *Client) parameterSetToMap(ps *ParameterSet) map[string]interface{} {
-	if ps == nil {
-		return nil
-	}
-
-	m := make(map[string]interface{})
-	if ps.Namespace != "" {
-		m["namespace"] = ps.Namespace
-	}
-	if ps.NamePrefix != "" {
-		m["namePrefix"] = ps.NamePrefix
-	}
-	if ps.Replicas != nil {
-		m["replicas"] = *ps.Replicas
-	}
-	if ps.ImageTag != "" {
-		m["imageTag"] = ps.ImageTag
-	}
-	if ps.StorageSize != "" {
-		m["storageSize"] = ps.StorageSize
-	}
-	if ps.Resources != nil {
-		resources := make(map[string]interface{})
-		if ps.Resources.Requests != nil {
-			requests := make(map[string]interface{})
-			if ps.Resources.Requests.Memory != "" {
-				requests["memory"] = ps.Resources.Requests.Memory
-			}
-			if ps.Resources.Requests.CPU != "" {
-				requests["cpu"] = ps.Resources.Requests.CPU
-			}
-			if len(requests) > 0 {
-				resources["requests"] = requests
-			}
-		}
-		if ps.Resources.Limits != nil {
-			limits := make(map[string]interface{})
-			if ps.Resources.Limits.Memory != "" {
-				limits["memory"] = ps.Resources.Limits.Memory
-			}
-			if ps.Resources.Limits.CPU != "" {
-				limits["cpu"] = ps.Resources.Limits.CPU
-			}
-			if len(limits) > 0 {
-				resources["limits"] = limits
-			}
-		}
-		if len(resources) > 0 {
-			m["resources"] = resources
-		}
-	}
-	if ps.Labels != nil && len(ps.Labels) > 0 {
-		m["labels"] = ps.Labels
-	}
-	if ps.Annotations != nil && len(ps.Annotations) > 0 {
-		m["annotations"] = ps.Annotations
-	}
-	if ps.NodeSelector != nil && len(ps.NodeSelector) > 0 {
-		m["nodeSelector"] = ps.NodeSelector
-	}
-	if ps.Tolerations != nil && len(ps.Tolerations) > 0 {
-		m["tolerations"] = ps.Tolerations
-	}
-
-	return m
-}
 
 func (c *Client) unstructuredToDeploymentParameters(obj *unstructured.Unstructured) (*DeploymentParameters, error) {
 	params := &DeploymentParameters{
@@ -474,107 +261,47 @@ func (c *Client) unstructuredToDeploymentParameters(obj *unstructured.Unstructur
 		},
 	}
 
+	// Extract spec directly as map[string]interface{} to preserve all fields
 	specRaw, ok := obj.Object["spec"]
 	if !ok {
+		params.Spec = make(map[string]interface{})
 		return params, nil
 	}
 
 	specMap, ok := specRaw.(map[string]interface{})
 	if !ok {
+		params.Spec = make(map[string]interface{})
 		return params, nil
 	}
 
-	if globalRaw, ok := specMap["global"]; ok {
-		if globalMap, ok := globalRaw.(map[string]interface{}); ok {
-			params.Spec.Global = c.mapToParameterSet(globalMap)
-		}
-	}
-
-	if servicesRaw, ok := specMap["services"]; ok {
-		if servicesMap, ok := servicesRaw.(map[string]interface{}); ok {
-			params.Spec.Services = make(map[string]*ParameterSet)
-			for k, v := range servicesMap {
-				if serviceMap, ok := v.(map[string]interface{}); ok {
-					params.Spec.Services[k] = c.mapToParameterSet(serviceMap)
-				}
-			}
-		}
-	}
+	// Deep copy the spec map to avoid sharing references
+	params.Spec = deepCopyMap(specMap)
 
 	return params, nil
 }
 
-func (c *Client) mapToParameterSet(m map[string]interface{}) *ParameterSet {
-	ps := &ParameterSet{}
+// deepCopyMap creates a deep copy of a map[string]interface{}
+func deepCopyMap(src map[string]interface{}) map[string]interface{} {
+	dst := make(map[string]interface{})
+	for k, v := range src {
+		dst[k] = deepCopyValue(v)
+	}
+	return dst
+}
 
-	if v, ok := m["namespace"].(string); ok {
-		ps.Namespace = v
-	}
-	if v, ok := m["namePrefix"].(string); ok {
-		ps.NamePrefix = v
-	}
-	if v, ok := m["replicas"].(int64); ok {
-		ps.Replicas = int32Ptr(int32(v))
-	}
-	if v, ok := m["imageTag"].(string); ok {
-		ps.ImageTag = v
-	}
-	if v, ok := m["storageSize"].(string); ok {
-		ps.StorageSize = v
-	}
-
-	if resourcesRaw, ok := m["resources"].(map[string]interface{}); ok {
-		ps.Resources = &ResourceRequirements{}
-		if requestsRaw, ok := resourcesRaw["requests"].(map[string]interface{}); ok {
-			ps.Resources.Requests = &ResourceList{}
-			if v, ok := requestsRaw["memory"].(string); ok {
-				ps.Resources.Requests.Memory = v
-			}
-			if v, ok := requestsRaw["cpu"].(string); ok {
-				ps.Resources.Requests.CPU = v
-			}
+// deepCopyValue creates a deep copy of a value
+func deepCopyValue(v interface{}) interface{} {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		return deepCopyMap(val)
+	case []interface{}:
+		dst := make([]interface{}, len(val))
+		for i, item := range val {
+			dst[i] = deepCopyValue(item)
 		}
-		if limitsRaw, ok := resourcesRaw["limits"].(map[string]interface{}); ok {
-			ps.Resources.Limits = &ResourceList{}
-			if v, ok := limitsRaw["memory"].(string); ok {
-				ps.Resources.Limits.Memory = v
-			}
-			if v, ok := limitsRaw["cpu"].(string); ok {
-				ps.Resources.Limits.CPU = v
-			}
-		}
+		return dst
+	default:
+		// For primitives (string, int, bool, etc.), return as-is
+		return v
 	}
-
-	if v, ok := m["labels"].(map[string]interface{}); ok {
-		ps.Labels = make(map[string]string)
-		for k, val := range v {
-			if strVal, ok := val.(string); ok {
-				ps.Labels[k] = strVal
-			}
-		}
-	}
-
-	if v, ok := m["annotations"].(map[string]interface{}); ok {
-		ps.Annotations = make(map[string]string)
-		for k, val := range v {
-			if strVal, ok := val.(string); ok {
-				ps.Annotations[k] = strVal
-			}
-		}
-	}
-
-	if v, ok := m["nodeSelector"].(map[string]interface{}); ok {
-		ps.NodeSelector = make(map[string]string)
-		for k, val := range v {
-			if strVal, ok := val.(string); ok {
-				ps.NodeSelector[k] = strVal
-			}
-		}
-	}
-
-	if v, ok := m["tolerations"].([]interface{}); ok {
-		ps.Tolerations = v
-	}
-
-	return ps
 }

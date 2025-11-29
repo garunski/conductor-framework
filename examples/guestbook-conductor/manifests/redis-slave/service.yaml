@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}redis-slave
-  namespace: {{.Namespace}}
+  name: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}redis-slave
+  namespace: {{if .Spec.Global.namespace}}{{.Spec.Global.namespace}}{{else}}default{{end}}
 spec:
   selector:
-    app: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}redis
+    app: {{if .Spec.Global.namePrefix}}{{.Spec.Global.namePrefix}}{{end}}redis
     role: slave
   ports:
   - port: 6379

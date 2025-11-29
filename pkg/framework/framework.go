@@ -124,10 +124,10 @@ func Run(ctx context.Context, cfg Config) error {
 			// Create temporary CRD client for manifest loading
 			parameterClient := crd.NewClient(dynamicClient, logger, cfg.CRDGroup, cfg.CRDVersion, cfg.CRDResource)
 			
-			// Create parameter getter function
+			// Create parameter getter function that returns full spec
 			defaultNamespace := "default"
-			parameterGetter = func(ctx context.Context, serviceName string) (*crd.ParameterSet, error) {
-				return parameterClient.GetMergedParameters(ctx, serviceName, defaultNamespace)
+			parameterGetter = func(ctx context.Context) (map[string]interface{}, error) {
+				return parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
 			}
 		}
 	}
