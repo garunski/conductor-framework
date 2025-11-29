@@ -4,7 +4,7 @@
 set -e
 
 # Configuration
-IMAGE_NAME=${IMAGE_NAME:-localmeadow-conductor}
+IMAGE_NAME=${IMAGE_NAME:-guestbook-conductor}
 UPDATE_DEPS=${UPDATE_DEPS:-false}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONDUCTOR_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"

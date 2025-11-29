@@ -110,7 +110,7 @@ The conductor deployment uses versioned image tags to avoid "latest" tag confusi
 cat conductor/.conductor-version
 
 # Or check built images
-docker images | grep localmeadow-conductor
+docker images | grep guestbook-conductor
 ```
 
 ### Storage
@@ -140,16 +140,16 @@ After deploying, verify the conductor is running:
 
 ```bash
 # Check pod status
-kubectl get pods -n localmeadow-conductor
+kubectl get pods -n guestbook-conductor
 
 # Check deployment status
-kubectl get deployment -n localmeadow-conductor
+kubectl get deployment -n guestbook-conductor
 
 # View conductor logs
-kubectl logs -f -n localmeadow-conductor deployment/localmeadow-conductor
+kubectl logs -f -n guestbook-conductor deployment/guestbook-conductor
 
 # Test health endpoints
-kubectl port-forward -n localmeadow-conductor svc/localmeadow-conductor 8081:8081
+kubectl port-forward -n guestbook-conductor svc/guestbook-conductor 8081:8081
 # In another terminal:
 curl http://localhost:8081/healthz
 curl http://localhost:8081/readyz
@@ -159,9 +159,9 @@ curl http://localhost:8081/readyz
 
 ### Pod Not Starting
 
-1. Check pod status: `kubectl get pods -n localmeadow-conductor`
-2. Check pod events: `kubectl describe pod -n localmeadow-conductor <pod-name>`
-3. Check logs: `kubectl logs -n localmeadow-conductor <pod-name>`
+1. Check pod status: `kubectl get pods -n guestbook-conductor`
+2. Check pod events: `kubectl describe pod -n guestbook-conductor <pod-name>`
+3. Check logs: `kubectl logs -n guestbook-conductor <pod-name>`
 
 ### Image Pull Errors
 
@@ -169,31 +169,31 @@ curl http://localhost:8081/readyz
 - **Rancher Desktop Container Runtime**: Rancher Desktop can use either `containerd` or `dockerd`:
   - **If using containerd**: Build images with `nerdctl` instead of `docker`:
     ```bash
-    nerdctl build -t localmeadow-conductor:latest ..
+    nerdctl build -t guestbook-conductor:latest ..
     ```
     Or import Docker image into containerd:
     ```bash
-    docker save localmeadow-conductor:latest | nerdctl --namespace k8s.io load
+    docker save guestbook-conductor:latest | nerdctl --namespace k8s.io load
     ```
   - **If using dockerd**: Regular `docker build` should work
   - Check your runtime in Rancher Desktop: Preferences → Container Engine
 - **Image Pull Policy**: The deployment uses `imagePullPolicy: IfNotPresent` to use local images
 - Verify image exists:
-  - Docker: `docker images | grep localmeadow-conductor`
-  - Containerd: `nerdctl --namespace k8s.io images | grep localmeadow-conductor`
+  - Docker: `docker images | grep guestbook-conductor`
+  - Containerd: `nerdctl --namespace k8s.io images | grep guestbook-conductor`
 - If using a different registry, ensure the image is pushed and accessible
 
 ### PVC Not Binding
 
 - Check storage class: `kubectl get storageclass`
-- Check PVC status: `kubectl get pvc -n localmeadow-conductor`
-- Check PVC events: `kubectl describe pvc localmeadow-conductor-data -n localmeadow-conductor`
+- Check PVC status: `kubectl get pvc -n guestbook-conductor`
+- Check PVC events: `kubectl describe pvc guestbook-conductor-data -n guestbook-conductor`
 - If no default storage class exists, add `storageClassName: <name>` to the PVC spec in `conductor.yaml`
 
 ### RBAC Permission Issues
 
-- Verify ServiceAccount exists: `kubectl get sa -n localmeadow-conductor`
-- Verify ClusterRoleBinding: `kubectl get clusterrolebinding localmeadow-conductor`
+- Verify ServiceAccount exists: `kubectl get sa -n guestbook-conductor`
+- Verify ClusterRoleBinding: `kubectl get clusterrolebinding guestbook-conductor`
 - Check conductor logs for permission errors
 
 ## Uninstalling
@@ -223,10 +223,10 @@ If you prefer to remove resources manually:
 IMAGE_TAG=dev-local-20250128-143022 ./down.sh
 
 # Or delete by namespace (removes everything)
-kubectl delete namespace localmeadow-conductor
+kubectl delete namespace guestbook-conductor
 
 # Note: PVC and data will persist unless explicitly deleted
-# To delete PVC: kubectl delete pvc localmeadow-conductor-data -n localmeadow-conductor
+# To delete PVC: kubectl delete pvc guestbook-conductor-data -n guestbook-conductor
 ```
 
 ## Resource Order

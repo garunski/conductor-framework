@@ -5,7 +5,7 @@
 set -e
 
 # Configuration
-NAMESPACE=${NAMESPACE:-localmeadow-conductor}
+NAMESPACE=${NAMESPACE:-guestbook-conductor}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONDUCTOR_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -49,9 +49,9 @@ fi
 # Step 1: Delete deployment and service (if namespace exists)
 echo "Step 1: Deleting deployment and service..."
 if kubectl get namespace "$NAMESPACE" &> /dev/null; then
-    kubectl delete deployment localmeadow-conductor -n "$NAMESPACE" --ignore-not-found=true || true
-    kubectl delete service localmeadow-conductor -n "$NAMESPACE" --ignore-not-found=true || true
-    kubectl delete poddisruptionbudget localmeadow-conductor -n "$NAMESPACE" --ignore-not-found=true || true
+    kubectl delete deployment guestbook-conductor -n "$NAMESPACE" --ignore-not-found=true || true
+    kubectl delete service guestbook-conductor -n "$NAMESPACE" --ignore-not-found=true || true
+    kubectl delete poddisruptionbudget guestbook-conductor -n "$NAMESPACE" --ignore-not-found=true || true
     echo "✓ Deployment and service deleted"
 else
     echo "✓ Namespace does not exist, skipping deployment/service deletion"
@@ -61,12 +61,12 @@ fi
 echo ""
 echo "Step 2: Deleting PersistentVolumeClaim and PersistentVolume (all BadgerDB data will be lost)..."
 if kubectl get namespace "$NAMESPACE" &> /dev/null; then
-    if kubectl get pvc localmeadow-conductor-data -n "$NAMESPACE" &> /dev/null; then
+    if kubectl get pvc guestbook-conductor-data -n "$NAMESPACE" &> /dev/null; then
         # Get the PV name before deleting PVC
-        PV_NAME=$(kubectl get pvc localmeadow-conductor-data -n "$NAMESPACE" -o jsonpath='{.spec.volumeName}' 2>/dev/null || echo "")
+        PV_NAME=$(kubectl get pvc guestbook-conductor-data -n "$NAMESPACE" -o jsonpath='{.spec.volumeName}' 2>/dev/null || echo "")
         
         # Delete PVC (this should trigger PV deletion if reclaim policy is Delete)
-        kubectl delete pvc localmeadow-conductor-data -n "$NAMESPACE" --ignore-not-found=true
+        kubectl delete pvc guestbook-conductor-data -n "$NAMESPACE" --ignore-not-found=true
         
         # Wait a moment for PV to be released
         sleep 2
@@ -90,14 +90,14 @@ fi
 # Step 3: Delete RBAC resources (ClusterRoleBinding and ClusterRole)
 echo ""
 echo "Step 3: Deleting RBAC resources..."
-kubectl delete clusterrolebinding localmeadow-conductor --ignore-not-found=true || true
-kubectl delete clusterrole localmeadow-conductor --ignore-not-found=true || true
+kubectl delete clusterrolebinding guestbook-conductor --ignore-not-found=true || true
+kubectl delete clusterrole guestbook-conductor --ignore-not-found=true || true
 echo "✓ RBAC resources deleted"
 
 # Step 4: Delete CRD (CustomResourceDefinition)
 echo ""
 echo "Step 4: Deleting CustomResourceDefinition..."
-kubectl delete crd deploymentparameters.conductor.localmeadow.io --ignore-not-found=true || true
+kubectl delete crd deploymentparameters.conductor.io --ignore-not-found=true || true
 echo "✓ CRD deleted"
 
 # Step 5: Delete namespace (this deletes everything remaining)

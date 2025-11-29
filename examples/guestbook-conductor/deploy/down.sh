@@ -5,7 +5,7 @@
 set -e
 
 # Configuration
-NAMESPACE=${NAMESPACE:-localmeadow-conductor}
+NAMESPACE=${NAMESPACE:-guestbook-conductor}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONDUCTOR_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 VERSION_FILE="${CONDUCTOR_DIR}/.conductor-version"
@@ -76,5 +76,5 @@ echo "Conductor removal complete!"
 echo ""
 echo "Note: PersistentVolumeClaim data may still exist."
 echo "To delete PVC and all data:"
-echo "  kubectl delete pvc localmeadow-conductor-data -n $NAMESPACE"
+echo "  kubectl delete pvc guestbook-conductor-data -n $NAMESPACE"
 
