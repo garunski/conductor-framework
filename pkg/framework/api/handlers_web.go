@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"net/http"
-	"strings"
+	"sort"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
@@ -60,42 +62,40 @@ func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // getServiceNames extracts service names from manifest directory structure
+// It discovers services by looking at Service resources in the manifests
 func (h *Handler) getServiceNames() []string {
-	// Extract service names from embedded manifest files
+	// Extract service names from Service resources in manifests
 	// Services are organized in directories: manifests/{service-name}/*.yaml
 	serviceMap := make(map[string]bool)
 	
 	manifests := h.store.List()
-	for key := range manifests {
-		// Key format: namespace/kind/name
-		// Extract service name from resource name
-		// Services typically have names like: redis, postgresql, medusa-backend, etc.
-		parts := strings.Split(key, "/")
-		if len(parts) >= 3 {
-			name := parts[2]
-			
-			// Map resource names to service names
-			// Remove common suffixes and prefixes
-			serviceName := name
-			if strings.HasSuffix(name, "-backend") {
-				serviceName = strings.TrimSuffix(name, "-backend")
-			} else if strings.HasSuffix(name, "-pvc") {
-				serviceName = strings.TrimSuffix(name, "-pvc")
-			} else if strings.HasSuffix(name, "-secrets") {
-				serviceName = strings.TrimSuffix(name, "-secrets")
-			} else if strings.HasSuffix(name, "-config") {
-				serviceName = strings.TrimSuffix(name, "-config")
-			}
-			
-			// Known service names from manifest directories
-			knownServices := []string{"redis", "postgresql", "medusa", "mercurjs", "uptrace", "clickhouse"}
-			for _, knownSvc := range knownServices {
-				if strings.HasPrefix(serviceName, knownSvc) || serviceName == knownSvc {
-					serviceMap[knownSvc] = true
-					break
-				}
-			}
+	for _, yamlData := range manifests {
+		// Parse YAML to check if it's a Service
+		var obj struct {
+			Kind     string `yaml:"kind"`
+			Metadata struct {
+				Name string `yaml:"name"`
+			} `yaml:"metadata"`
 		}
+		
+		if err := yaml.Unmarshal(yamlData, &obj); err != nil {
+			continue
+		}
+		
+		// Only consider Service resources
+		if obj.Kind != "Service" {
+			continue
+		}
+		
+		if obj.Metadata.Name == "" {
+			continue
+		}
+		
+		// Extract service name from Service resource name
+		// For guestbook: frontend, redis-master, redis-slave
+		// Use the service name as-is (may include name prefix if set in templates)
+		serviceName := obj.Metadata.Name
+		serviceMap[serviceName] = true
 	}
 	
 	// Convert map to sorted slice
@@ -104,10 +104,8 @@ func (h *Handler) getServiceNames() []string {
 		services = append(services, svc)
 	}
 	
-	// If no services found, return default list
-	if len(services) == 0 {
-		return []string{"redis", "postgresql", "medusa", "mercurjs", "uptrace", "clickhouse"}
-	}
+	// Sort for consistent ordering
+	sort.Strings(services)
 	
 	return services
 }

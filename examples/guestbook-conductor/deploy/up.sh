@@ -5,9 +5,22 @@
 set -e
 
 # Configuration
-IMAGE_TAG=${IMAGE_TAG:-latest}
-NAMESPACE=${NAMESPACE:-guestbook-conductor}
+NAMESPACE=${NAMESPACE:-localmeadow-conductor}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONDUCTOR_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+VERSION_FILE="${CONDUCTOR_DIR}/.conductor-version"
+
+# Get image tag from environment, version file, or generate one
+if [ -z "$IMAGE_TAG" ]; then
+    if [ -f "$VERSION_FILE" ]; then
+        IMAGE_TAG=$(cat "$VERSION_FILE")
+        echo "Using version from $VERSION_FILE: $IMAGE_TAG"
+    else
+        # Generate timestamp-based version if no file exists
+        IMAGE_TAG="dev-local-$(date +%Y%m%d-%H%M%S)"
+        echo "No version file found, using generated version: $IMAGE_TAG"
+    fi
+fi
 
 echo "Bootstrapping conductor..."
 echo "  Image tag: $IMAGE_TAG"
@@ -27,7 +40,7 @@ if ! kubectl cluster-info &> /dev/null; then
 fi
 
 # Check if Docker image exists locally
-IMAGE_NAME=${IMAGE_NAME:-guestbook-conductor}
+IMAGE_NAME=${IMAGE_NAME:-localmeadow-conductor}
 if ! docker image inspect "${IMAGE_NAME}:${IMAGE_TAG}" &> /dev/null; then
     echo "⚠ Warning: Docker image ${IMAGE_NAME}:${IMAGE_TAG} not found locally"
     echo ""
@@ -49,7 +62,7 @@ sed "s|IMAGE_TAG_PLACEHOLDER|${IMAGE_TAG}|g" "${SCRIPT_DIR}/conductor.yaml" | ku
 
 echo ""
 echo "Step 2: Waiting for conductor deployment to be available..."
-if kubectl wait --for=condition=available --timeout=300s deployment/guestbook-conductor -n "$NAMESPACE" 2>/dev/null; then
+if kubectl wait --for=condition=available --timeout=300s deployment/localmeadow-conductor -n "$NAMESPACE" 2>/dev/null; then
     echo "✓ Conductor deployment is available"
 else
     echo "⚠ Warning: Conductor deployment may not be ready yet"
@@ -58,16 +71,16 @@ fi
 
 echo ""
 echo "Step 3: Checking conductor pod status..."
-kubectl get pods -n "$NAMESPACE" -l app=guestbook-conductor
+kubectl get pods -n "$NAMESPACE" -l app=localmeadow-conductor
 
 echo ""
 echo "Bootstrap complete!"
 echo ""
 echo "To check conductor logs:"
-echo "  kubectl logs -f -n $NAMESPACE deployment/guestbook-conductor"
+echo "  kubectl logs -f -n $NAMESPACE deployment/localmeadow-conductor"
 echo ""
 echo "To check conductor health:"
-echo "  kubectl port-forward -n $NAMESPACE svc/guestbook-conductor 8081:8081"
+echo "  kubectl port-forward -n $NAMESPACE svc/localmeadow-conductor 8081:8081"
 echo "  curl http://localhost:8081/healthz"
 echo "  curl http://localhost:8081/readyz"
 

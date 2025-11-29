@@ -1,1 +1,142 @@
-examples/guestbook-conductor/
+
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+coverage.html
+*.prof
+*.cpu
+*.mem
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# Go build cache
+.cache/
+*.a
+*.o
+
+# Debug binaries
+__debug_bin
+
+# IDE and editor files
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS-specific files
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# BadgerDB data directories and files
+**/data/
+*.badger
+*.badger.db
+badger/
+*.vlog
+*.mem
+DISCARD
+KEYREGISTRY
+LOCK
+MANIFEST
+
+# Kubernetes config files (may contain secrets)
+kubeconfig
+.kubeconfig
+*.kubeconfig
+
+# Docker build artifacts
+.dockerignore
+docker-compose.override.yml
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+/temp/
+*.bak
+*.backup
+*.orig
+
+# Log files
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+bin/
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Test data and fixtures (if they contain sensitive data)
+# Uncomment if needed:
+# testdata/*.secret.yaml
+# testdata/*.key
+
+# Local development files
+local/
+.local/
+
+# conductor-specific binaries and build artifacts
+conductor/bin/
+conductor/conductor
+conductor/conductor-linux
+conductor/.conductor-version
+# Match binary files ending with -conductor (but not directories)
+# First ignore everything ending with -conductor
+**/*-conductor
+# Then un-ignore directories ending with -conductor
+!**/*-conductor/
+# Un-ignore all contents of those directories
+!**/*-conductor/**
+# Re-ignore binary files that are direct children of directories ending with -conductor
+**/*-conductor/*-conductor
+
+# Kubernetes secrets and sensitive configs
+# Note: Exclude conductor/manifests/* as these are templates, not actual secrets
+*secret*.yaml
+*secret*.yml
+*secrets*.yaml
+*secrets*.yml
+!conductor/manifests/**/*secret*.yaml
+!conductor/manifests/**/*secret*.yml
+*.key
+*.pem
+*.crt
+*.cert
+
+# Temporary build artifacts from Docker builds
+**/conductor-framework/
+examples/guestbook-conductor/data/
+examples/guestbook-conductor/.conductor-version

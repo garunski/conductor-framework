@@ -1,0 +1,13 @@
+data/
+.git/
+conductor-framework/.git/
+conductor-framework/**/.git/
+*.log
+*.vlog
+*.mem
+DISCARD
+KEYREGISTRY
+LOCK
+MANIFEST
+guestbook-conductor
+

@@ -121,53 +121,80 @@ spec:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: guestbook-conductor
+  name: localmeadow-conductor
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: guestbook-conductor
-  namespace: guestbook-conductor
+  name: localmeadow-conductor
+  namespace: localmeadow-conductor
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: guestbook-conductor
+  name: localmeadow-conductor
 rules:
+# Core resources - only what's needed
 - apiGroups: [""]
-  resources: ["*"]
+  resources: ["namespaces", "services", "configmaps", "secrets", "persistentvolumeclaims", "pods", "serviceaccounts"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list", "watch", "create", "patch"]
+# Apps resources
 - apiGroups: ["apps"]
-  resources: ["*"]
+  resources: ["deployments", "statefulsets", "replicasets"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Batch resources
 - apiGroups: ["batch"]
-  resources: ["*"]
+  resources: ["jobs", "cronjobs"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Policy resources
+- apiGroups: ["policy"]
+  resources: ["poddisruptionbudgets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Networking resources
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Storage resources
 - apiGroups: ["storage.k8s.io"]
   resources: ["storageclasses"]
   verbs: ["get", "list", "watch"]
+# Custom resources
 - apiGroups: ["conductor.localmeadow.io"]
   resources: ["deploymentparameters"]
   verbs: ["get", "list", "watch", "create", "update", "patch"]
+# ClickHouse Operator resources
+- apiGroups: ["clickhouse.altinity.com"]
+  resources: ["clickhouseinstallations"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# CloudNativePG Operator resources
+- apiGroups: ["postgresql.cnpg.io"]
+  resources: ["clusters"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: guestbook-conductor
+  name: localmeadow-conductor
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: guestbook-conductor
+  name: localmeadow-conductor
 subjects:
 - kind: ServiceAccount
-  name: guestbook-conductor
-  namespace: guestbook-conductor
+  name: localmeadow-conductor
+  namespace: localmeadow-conductor
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: guestbook-conductor-data
-  namespace: guestbook-conductor
+  name: localmeadow-conductor-data
+  namespace: localmeadow-conductor
 spec:
   accessModes:
   - ReadWriteOnce
@@ -178,23 +205,37 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: guestbook-conductor
-  namespace: guestbook-conductor
+  name: localmeadow-conductor
+  namespace: localmeadow-conductor
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
-      app: guestbook-conductor
+      app: localmeadow-conductor
   template:
     metadata:
       labels:
-        app: guestbook-conductor
+        app: localmeadow-conductor
     spec:
-      serviceAccountName: guestbook-conductor
+      serviceAccountName: localmeadow-conductor
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: conductor
-        image: guestbook-conductor:IMAGE_TAG_PLACEHOLDER
+        image: localmeadow-conductor:IMAGE_TAG_PLACEHOLDER
         imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
         ports:
         - containerPort: 8081
           name: http
@@ -203,23 +244,38 @@ spec:
           value: /data/badger
         - name: PORT
           value: "8081"
-        - name: RECONCILE_INTERVAL
-          value: "30s"
+        - name: LOG_RETENTION_DAYS
+          value: "7"
+        - name: LOG_CLEANUP_INTERVAL
+          value: "1h"
+        - name: VERSION
+          value: "dev"
         volumeMounts:
         - name: data
           mountPath: /data
+        startupProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 12
         livenessProbe:
           httpGet:
             path: /healthz
             port: 8081
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
         readinessProbe:
           httpGet:
             path: /readyz
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
         resources:
           requests:
             memory: "64Mi"
@@ -230,16 +286,27 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: guestbook-conductor-data
+          claimName: localmeadow-conductor-data
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: localmeadow-conductor
+  namespace: localmeadow-conductor
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: localmeadow-conductor
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: guestbook-conductor
-  namespace: guestbook-conductor
+  name: localmeadow-conductor
+  namespace: localmeadow-conductor
 spec:
   selector:
-    app: guestbook-conductor
+    app: localmeadow-conductor
   ports:
   - port: 8081
     targetPort: 8081

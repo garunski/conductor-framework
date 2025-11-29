@@ -29,6 +29,15 @@
       "problemMatcher": []
     },
     {
+      "label": "Guestbook Conductor: Clear",
+      "type": "shell",
+      "command": "./deploy/clear.sh",
+      "options": {
+        "cwd": "${workspaceFolder}/examples/guestbook-conductor"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Guestbook Conductor: Run Local",
       "type": "shell",
       "command": "export BADGER_DATA_PATH=./data && mkdir -p ./data && go run main.go",
