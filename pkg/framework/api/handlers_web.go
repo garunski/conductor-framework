@@ -2,10 +2,13 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
+	"github.com/garunski/conductor-framework/pkg/framework/crd"
 	"gopkg.in/yaml.v3"
 )
 
@@ -49,9 +52,78 @@ func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 	manifests := h.store.List()
 	installationStatus := getServiceInstallationStatus(ctx, services, manifests, h.reconciler)
 	
+	// Detect namespace from manifests (try to find the most common namespace)
+	detectedNamespace := detectNamespaceFromManifests(manifests)
+	if detectedNamespace == "" {
+		detectedNamespace = "default"
+	}
+	
+	// Get CRD schema definition (raw OpenAPI schema) for form generation
+	crdSchema, err := h.parameterClient.GetCRDSchema(ctx)
+	if err != nil {
+		h.logger.V(1).Info("failed to get CRD schema, using sample schema for local development", "error", err)
+		// Use sample schema for local development/debugging
+		crdSchema = getSampleCRDSchema()
+	}
+	
+	// Extract the spec schema from the CRD schema
+	var specSchema map[string]interface{}
+	if properties, ok := crdSchema["properties"].(map[string]interface{}); ok {
+		if spec, ok := properties["spec"].(map[string]interface{}); ok {
+			specSchema = spec
+		}
+	}
+	
+	// If we still don't have a spec schema, use the sample one
+	if specSchema == nil || len(specSchema) == 0 {
+		sampleSchema := getSampleCRDSchema()
+		if properties, ok := sampleSchema["properties"].(map[string]interface{}); ok {
+			if spec, ok := properties["spec"].(map[string]interface{}); ok {
+				specSchema = spec
+			}
+		}
+	}
+	
+	// Get CRD instance values - try detected namespace first, then fallback to default
+	instanceSpec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, detectedNamespace)
+	if err != nil || instanceSpec == nil || len(instanceSpec) == 0 {
+		// Fallback to default namespace if not found in detected namespace
+		if detectedNamespace != "default" {
+			instanceSpec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
+		}
+		if err != nil || instanceSpec == nil {
+			instanceSpec = make(map[string]interface{})
+		}
+	}
+	
+	// Ensure services map exists to avoid nil index errors in template
+	if instanceSpec["services"] == nil {
+		instanceSpec["services"] = make(map[string]interface{})
+	}
+	
+	// Get service values for current values display
+	serviceValues := h.getServiceValuesMap(ctx, services, detectedNamespace)
+	
+	// Convert schema and instance to JSON for JavaScript library
+	var specSchemaJSON, instanceSpecJSON string
+	if specSchema != nil {
+		if b, err := json.Marshal(specSchema); err == nil {
+			specSchemaJSON = string(b)
+		}
+	}
+	if instanceSpec != nil {
+		if b, err := json.Marshal(instanceSpec); err == nil {
+			instanceSpecJSON = string(b)
+		}
+	}
+	
 	data := map[string]interface{}{
 		"Services":           services,
 		"InstallationStatus": installationStatus,
+		"ParametersSpec":     instanceSpec, // Keep for backward compatibility
+		"ServiceValues":      serviceValues,
+		"CRDSchemaJSON":      specSchemaJSON, // Raw JSON schema for JavaScript library
+		"InstanceSpecJSON":   instanceSpecJSON, // Instance values as JSON
 		// AppName and AppVersion will be added by renderTemplate
 	}
 	
@@ -116,5 +188,367 @@ func (h *Handler) LogsPage(w http.ResponseWriter, r *http.Request) {
 	if err := h.renderTemplate(w, "logs", nil); err != nil {
 		h.logger.Error(err, "failed to render template")
 		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "template_execution_failed", "Failed to execute template", nil)
+	}
+}
+
+// getServiceValuesMap returns merged/default and deployed values for all services
+// Similar to GetServiceValues but returns a map instead of writing HTTP response
+func (h *Handler) getServiceValuesMap(ctx context.Context, services []string, defaultNamespace string) map[string]map[string]interface{} {
+	result := make(map[string]map[string]interface{})
+	clientset := h.reconciler.GetClientset()
+	manifests := h.store.List()
+
+	for _, serviceName := range services {
+		serviceData := make(map[string]interface{})
+
+		// Get merged/default values
+		var merged map[string]interface{}
+
+		// Try to get spec, but don't fail if cluster is unavailable
+		spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
+		if err == nil && spec != nil {
+			// Merge global and service-specific parameters
+			merged = make(map[string]interface{})
+
+			// Start with global defaults
+			if global, ok := spec["global"].(map[string]interface{}); ok {
+				for k, v := range global {
+					merged[k] = v
+				}
+			}
+
+			// Apply service-specific overrides
+			if services, ok := spec["services"].(map[string]interface{}); ok {
+				if service, ok := services[serviceName].(map[string]interface{}); ok {
+					for k, v := range service {
+						merged[k] = v
+					}
+				}
+			}
+		}
+
+		// Fall back to empty map if no merged params
+		if merged == nil || len(merged) == 0 {
+			merged = make(map[string]interface{})
+		}
+
+		serviceData["merged"] = merged
+
+		// Get actual deployed values from Kubernetes (only if cluster is available)
+		if clientset != nil {
+			deployCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			deployed := getDeployedValues(deployCtx, clientset, serviceName, defaultNamespace, manifests)
+			cancel()
+			if deployed != nil {
+				serviceData["deployed"] = deployed
+			}
+		}
+
+		result[serviceName] = serviceData
+	}
+
+	return result
+}
+
+// detectNamespaceFromManifests extracts the most common namespace from manifest keys
+// Manifest keys are in format "namespace/Kind/name"
+func detectNamespaceFromManifests(manifests map[string][]byte) string {
+	if len(manifests) == 0 {
+		return ""
+	}
+	
+	namespaceCounts := make(map[string]int)
+	for key := range manifests {
+		parts := strings.Split(key, "/")
+		if len(parts) >= 1 && parts[0] != "" {
+			namespaceCounts[parts[0]]++
+		}
+	}
+	
+	// Find the most common namespace
+	maxCount := 0
+	mostCommon := ""
+	for ns, count := range namespaceCounts {
+		if count > maxCount {
+			maxCount = count
+			mostCommon = ns
+		}
+	}
+	
+	return mostCommon
+}
+
+// getSampleCRDSchema returns a sample CRD schema for local development/debugging
+// This is used when the real CRD cannot be fetched from the cluster
+func getSampleCRDSchema() map[string]interface{} {
+	return map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"spec": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"global": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"namespace": map[string]interface{}{
+								"type":    "string",
+								"default": "default",
+							},
+							"namePrefix": map[string]interface{}{
+								"type":    "string",
+								"default": "",
+							},
+							"replicas": map[string]interface{}{
+								"type":    "integer",
+								"default": 1,
+							},
+							"imageTag": map[string]interface{}{
+								"type": "string",
+							},
+							"imageRegistry": map[string]interface{}{
+								"type":    "string",
+								"default": "",
+							},
+							"imagePullSecrets": map[string]interface{}{
+								"type": "array",
+								"items": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"name": map[string]interface{}{
+											"type": "string",
+										},
+									},
+								},
+							},
+							"storageClassName": map[string]interface{}{
+								"type":    "string",
+								"default": "local-path",
+							},
+							"keepPVC": map[string]interface{}{
+								"type":    "boolean",
+								"default": false,
+							},
+							"resources": map[string]interface{}{
+								"type": "object",
+								"properties": map[string]interface{}{
+									"requests": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"memory": map[string]interface{}{
+												"type": "string",
+											},
+											"cpu": map[string]interface{}{
+												"type": "string",
+											},
+										},
+									},
+									"limits": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"memory": map[string]interface{}{
+												"type": "string",
+											},
+											"cpu": map[string]interface{}{
+												"type": "string",
+											},
+										},
+									},
+								},
+							},
+							"storageSize": map[string]interface{}{
+								"type": "string",
+							},
+							"labels": map[string]interface{}{
+								"type": "object",
+								"additionalProperties": map[string]interface{}{
+									"type": "string",
+								},
+							},
+							"annotations": map[string]interface{}{
+								"type": "object",
+								"additionalProperties": map[string]interface{}{
+									"type": "string",
+								},
+							},
+							"nodeSelector": map[string]interface{}{
+								"type": "object",
+								"additionalProperties": map[string]interface{}{
+									"type": "string",
+								},
+							},
+							"tolerations": map[string]interface{}{
+								"type": "array",
+								"items": map[string]interface{}{
+									"type": "object",
+								},
+							},
+						},
+					},
+					"services": map[string]interface{}{
+						"type": "object",
+						"additionalProperties": map[string]interface{}{
+							"type": "object",
+							"additionalProperties": true,
+							"properties": map[string]interface{}{
+								"namespace": map[string]interface{}{
+									"type": "string",
+								},
+								"namePrefix": map[string]interface{}{
+									"type": "string",
+								},
+								"replicas": map[string]interface{}{
+									"type": "integer",
+								},
+								"imageTag": map[string]interface{}{
+									"type": "string",
+								},
+								"resources": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"requests": map[string]interface{}{
+											"type": "object",
+											"properties": map[string]interface{}{
+												"memory": map[string]interface{}{
+													"type": "string",
+												},
+												"cpu": map[string]interface{}{
+													"type": "string",
+												},
+											},
+										},
+										"limits": map[string]interface{}{
+											"type": "object",
+											"properties": map[string]interface{}{
+												"memory": map[string]interface{}{
+													"type": "string",
+												},
+												"cpu": map[string]interface{}{
+													"type": "string",
+												},
+											},
+										},
+									},
+								},
+								"storageSize": map[string]interface{}{
+									"type": "string",
+								},
+								"labels": map[string]interface{}{
+									"type": "object",
+									"additionalProperties": map[string]interface{}{
+										"type": "string",
+									},
+								},
+								"annotations": map[string]interface{}{
+									"type": "object",
+									"additionalProperties": map[string]interface{}{
+										"type": "string",
+									},
+								},
+								// Example custom fields that might be in service configs
+								"config": map[string]interface{}{
+									"type": "object",
+									"additionalProperties": true,
+								},
+								"ingress": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"enabled": map[string]interface{}{
+											"type":    "boolean",
+											"default": false,
+										},
+										"host": map[string]interface{}{
+											"type": "string",
+										},
+										"path": map[string]interface{}{
+											"type": "string",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// mergeSchemaWithInstance merges the CRD schema structure with instance values
+// Schema provides the structure (what fields exist), instance provides the values
+func mergeSchemaWithInstance(schema, instance map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	
+	// Start with schema structure
+	if schemaGlobal, ok := schema["global"].(map[string]interface{}); ok {
+		result["global"] = deepCopyMap(schemaGlobal)
+	} else {
+		result["global"] = make(map[string]interface{})
+	}
+	
+	// Get schema template for services (this is a template for what each service can have)
+	var schemaServicesTemplate map[string]interface{}
+	if schemaServices, ok := schema["services"].(map[string]interface{}); ok {
+		schemaServicesTemplate = schemaServices
+	}
+	
+	// Initialize services map
+	result["services"] = make(map[string]interface{})
+	
+	// Overlay instance values on top of schema structure
+	if instanceGlobal, ok := instance["global"].(map[string]interface{}); ok {
+		mergeMaps(result["global"].(map[string]interface{}), instanceGlobal)
+	}
+	
+	// For services, the schema structure is a template for each service
+	// Merge schema template with each service's instance values
+	if instanceServices, ok := instance["services"].(map[string]interface{}); ok {
+		for serviceName, serviceInstance := range instanceServices {
+			if serviceMap, ok := serviceInstance.(map[string]interface{}); ok {
+				// Start with schema template if available
+				var serviceResult map[string]interface{}
+				if schemaServicesTemplate != nil {
+					serviceResult = deepCopyMap(schemaServicesTemplate)
+				} else {
+					serviceResult = make(map[string]interface{})
+				}
+				// Merge instance values into the schema template
+				mergeMaps(serviceResult, serviceMap)
+				// Store the merged result
+				result["services"].(map[string]interface{})[serviceName] = serviceResult
+			} else {
+				// If not a map, just use the instance value
+				result["services"].(map[string]interface{})[serviceName] = serviceInstance
+			}
+		}
+	}
+	
+	return result
+}
+
+// deepCopyMap creates a deep copy of a map
+func deepCopyMap(m map[string]interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range m {
+		if vMap, ok := v.(map[string]interface{}); ok {
+			result[k] = deepCopyMap(vMap)
+		} else {
+			result[k] = v
+		}
+	}
+	return result
+}
+
+// mergeMaps merges source into destination, recursively
+func mergeMaps(dest, src map[string]interface{}) {
+	for k, v := range src {
+		if vMap, ok := v.(map[string]interface{}); ok {
+			if destMap, ok := dest[k].(map[string]interface{}); ok {
+				mergeMaps(destMap, vMap)
+			} else {
+				dest[k] = deepCopyMap(vMap)
+			}
+		} else {
+			dest[k] = v
+		}
 	}
 }

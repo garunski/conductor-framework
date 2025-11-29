@@ -101,7 +101,7 @@ spec:
         limits:
           memory: "256Mi"
           cpu: "500m"
-    "web-app":
+    web-app:
       replicas: 1
       imageTag: "latest"
       config:

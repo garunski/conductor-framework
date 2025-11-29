@@ -21,9 +21,26 @@ import (
 // GetParameters retrieves the current deployment parameters
 func (h *Handler) GetParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	defaultNamespace := "default"
+	
+	// Detect namespace from manifests
+	manifests := h.store.List()
+	detectedNamespace := detectNamespaceFromManifests(manifests)
+	if detectedNamespace == "" {
+		detectedNamespace = "default"
+	}
 
-	spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
+	spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, detectedNamespace)
+	if err != nil || spec == nil || len(spec) == 0 {
+		// Fallback to default namespace
+		if detectedNamespace != "default" {
+			spec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
+		}
+		if err != nil {
+			h.logger.Error(err, "failed to get DeploymentParameters spec")
+			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_parameters_failed", err.Error(), nil)
+			return
+		}
+	}
 	if err != nil {
 		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_parameters_failed", err.Error(), nil)
 		return
@@ -46,7 +63,13 @@ func (h *Handler) GetParameters(w http.ResponseWriter, r *http.Request) {
 // UpdateParameters creates or updates deployment parameters
 func (h *Handler) UpdateParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	defaultNamespace := "default"
+	
+	// Detect namespace from manifests
+	manifests := h.store.List()
+	detectedNamespace := detectNamespaceFromManifests(manifests)
+	if detectedNamespace == "" {
+		detectedNamespace = "default"
+	}
 
 	var spec map[string]interface{}
 
@@ -56,7 +79,7 @@ func (h *Handler) UpdateParameters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get existing parameters to check if it exists
-	params, err := h.parameterClient.Get(ctx, crd.DefaultName, defaultNamespace)
+	params, err := h.parameterClient.Get(ctx, crd.DefaultName, detectedNamespace)
 	if err != nil {
 		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_parameters_failed", err.Error(), nil)
 		return
@@ -64,13 +87,13 @@ func (h *Handler) UpdateParameters(w http.ResponseWriter, r *http.Request) {
 
 	if params == nil {
 		// Create new
-		if err := h.parameterClient.CreateWithSpec(ctx, crd.DefaultName, defaultNamespace, spec); err != nil {
+		if err := h.parameterClient.CreateWithSpec(ctx, crd.DefaultName, detectedNamespace, spec); err != nil {
 			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "create_parameters_failed", err.Error(), nil)
 			return
 		}
 	} else {
 		// Update existing
-		if err := h.parameterClient.UpdateSpec(ctx, crd.DefaultName, defaultNamespace, spec); err != nil {
+		if err := h.parameterClient.UpdateSpec(ctx, crd.DefaultName, detectedNamespace, spec); err != nil {
 			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "update_parameters_failed", err.Error(), nil)
 			return
 		}
@@ -83,17 +106,29 @@ func (h *Handler) UpdateParameters(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetServiceParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	serviceName := chi.URLParam(r, "service")
-	defaultNamespace := "default"
+	
+	// Detect namespace from manifests
+	manifests := h.store.List()
+	detectedNamespace := detectNamespaceFromManifests(manifests)
+	if detectedNamespace == "" {
+		detectedNamespace = "default"
+	}
 
 	if serviceName == "" {
 		WriteErrorResponse(w, h.logger, http.StatusBadRequest, "invalid_request", "service name is required", nil)
 		return
 	}
 
-	spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
-	if err != nil {
-		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_service_parameters_failed", err.Error(), nil)
-		return
+	spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, detectedNamespace)
+	if err != nil || spec == nil || len(spec) == 0 {
+		// Fallback to default namespace
+		if detectedNamespace != "default" {
+			spec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
+		}
+		if err != nil {
+			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_service_parameters_failed", err.Error(), nil)
+			return
+		}
 	}
 
 	// Extract service from spec
@@ -115,14 +150,20 @@ func int32Ptr(i int32) *int32 {
 // GetServiceValues returns both merged/default values and actual deployed values for all services
 func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	defaultNamespace := "default"
+	
+	// Detect namespace from manifests
+	manifests := h.store.List()
+	detectedNamespace := detectNamespaceFromManifests(manifests)
+	if detectedNamespace == "" {
+		detectedNamespace = "default"
+	}
 
 	// Get all services using the same logic as the template
 	services := h.getServiceNames()
 
 	result := make(map[string]map[string]interface{})
 	clientset := h.reconciler.GetClientset()
-	manifests := h.store.List()
+	allManifests := h.store.List()
 
 	for _, serviceName := range services {
 		serviceData := make(map[string]interface{})
@@ -131,7 +172,13 @@ func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 		var merged map[string]interface{}
 		
 		// Try to get spec, but don't fail if cluster is unavailable
-		spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
+		spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, detectedNamespace)
+		if err != nil || spec == nil || len(spec) == 0 {
+			// Fallback to default namespace
+			if detectedNamespace != "default" {
+				spec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
+			}
+		}
 		if err == nil && spec != nil {
 			// Merge global and service-specific parameters
 			merged = make(map[string]interface{})
@@ -184,7 +231,7 @@ func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 		if clientset != nil {
 			// Use a short timeout context to avoid hanging if cluster is unavailable
 			deployCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-			deployed := getDeployedValues(deployCtx, clientset, serviceName, defaultNamespace, manifests)
+			deployed := getDeployedValues(deployCtx, clientset, serviceName, detectedNamespace, allManifests)
 			cancel()
 			if deployed != nil {
 				serviceData["deployed"] = deployed

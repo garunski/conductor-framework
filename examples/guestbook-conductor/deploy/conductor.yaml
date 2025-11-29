@@ -84,6 +84,7 @@ spec:
                 type: object
                 additionalProperties:
                   type: object
+                  additionalProperties: true
                   properties:
                     namespace:
                       type: string
@@ -179,6 +180,10 @@ rules:
 # Storage resources
 - apiGroups: ["storage.k8s.io"]
   resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+# API Extensions - needed to read CRD definitions
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
   verbs: ["get", "list", "watch"]
 # Custom resources
 - apiGroups: ["conductor.io"]

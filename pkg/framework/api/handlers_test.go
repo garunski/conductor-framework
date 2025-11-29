@@ -1,10 +1,12 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -428,4 +430,419 @@ func TestReadyz_NoManager(t *testing.T) {
 	if _, ok := status.Components["manager"]; ok {
 		t.Error("Readyz() should not include manager component when manager is nil")
 	}
+}
+
+func TestDeploymentsPage(t *testing.T) {
+	rec := setupTestReconciler(t, true)
+	handler, err := newTestHandler(t, WithTestReconciler(rec))
+	if err != nil {
+		t.Fatalf("newTestHandler() error = %v", err)
+	}
+
+	// Add a test service manifest to the store
+	testManifest := createTestManifest("Service", "test-service", "default")
+	if err := handler.store.Create("default/Service/test-service", []byte(testManifest)); err != nil {
+		t.Fatalf("failed to create test manifest: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/deployments", nil)
+	w := httptest.NewRecorder()
+
+	handler.DeploymentsPage(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("DeploymentsPage() status code = %v, want %v", w.Code, http.StatusOK)
+	}
+
+	// Check that the response contains HTML
+	body := w.Body.String()
+	if body == "" {
+		t.Error("DeploymentsPage() returned empty body")
+	}
+
+	// Check that the response contains expected template elements
+	if !strings.Contains(body, "Deployment Parameters") {
+		t.Error("DeploymentsPage() response should contain 'Deployment Parameters'")
+	}
+}
+
+func TestDeploymentsPage_WithCRDSpec(t *testing.T) {
+	rec := setupTestReconciler(t, true)
+	handler, err := newTestHandler(t, WithTestReconciler(rec))
+	if err != nil {
+		t.Fatalf("newTestHandler() error = %v", err)
+	}
+
+	// Add a test service manifest
+	testManifest := createTestManifest("Service", "test-service", "default")
+	if err := handler.store.Create("default/Service/test-service", []byte(testManifest)); err != nil {
+		t.Fatalf("failed to create test manifest: %v", err)
+	}
+
+	// Create a CRD spec with nested parameters
+	// Use float64 for numbers to be compatible with JSON unmarshaling
+	ctx := context.Background()
+	spec := map[string]interface{}{
+		"global": map[string]interface{}{
+			"namespace":     "test-ns",
+			"namePrefix":    "test-",
+			"imageRegistry": "gcr.io/test",
+		},
+		"services": map[string]interface{}{
+			"test-service": map[string]interface{}{
+				"replicas": float64(3),
+				"config": map[string]interface{}{
+					"database": map[string]interface{}{
+						"host": "localhost",
+						"port": float64(5432),
+					},
+				},
+			},
+		},
+	}
+
+	// Create the CRD instance
+	err = handler.parameterClient.CreateWithSpec(ctx, crd.DefaultName, "default", spec)
+	if err != nil {
+		t.Fatalf("failed to create CRD spec: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/deployments", nil)
+	w := httptest.NewRecorder()
+
+	handler.DeploymentsPage(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("DeploymentsPage() status code = %v, want %v", w.Code, http.StatusOK)
+	}
+
+	// The template should render the CRD spec data
+	body := w.Body.String()
+	if !strings.Contains(body, "test-ns") {
+		t.Error("DeploymentsPage() should render namespace from CRD spec")
+	}
+}
+
+func TestGetServiceValuesMap(t *testing.T) {
+	rec := setupTestReconciler(t, true)
+	handler, err := newTestHandler(t, WithTestReconciler(rec))
+	if err != nil {
+		t.Fatalf("newTestHandler() error = %v", err)
+	}
+
+	// Create a CRD spec with global and service-specific parameters
+	// Use float64 for numbers to be compatible with JSON unmarshaling
+	ctx := context.Background()
+	spec := map[string]interface{}{
+		"global": map[string]interface{}{
+			"namespace": "default",
+			"replicas":  float64(1),
+			"imageTag":  "latest",
+		},
+		"services": map[string]interface{}{
+			"service1": map[string]interface{}{
+				"replicas": float64(3),
+				"imageTag": "v1.0.0",
+			},
+			"service2": map[string]interface{}{
+				"config": map[string]interface{}{
+					"enabled": true,
+				},
+			},
+		},
+	}
+
+	err = handler.parameterClient.CreateWithSpec(ctx, crd.DefaultName, "default", spec)
+	if err != nil {
+		t.Fatalf("failed to create CRD spec: %v", err)
+	}
+
+	services := []string{"service1", "service2"}
+	result := handler.getServiceValuesMap(ctx, services, "default")
+
+	// Check service1 - should have merged values (global + service-specific)
+	if service1Data, ok := result["service1"]; !ok {
+		t.Error("getServiceValuesMap() should return data for service1")
+	} else {
+		merged, ok := service1Data["merged"].(map[string]interface{})
+		if !ok {
+			t.Error("getServiceValuesMap() should return merged values as map")
+		} else {
+			// Should have global defaults
+			if merged["namespace"] != "default" {
+				t.Errorf("getServiceValuesMap() merged namespace = %v, want %v", merged["namespace"], "default")
+			}
+			// Should have service-specific override for replicas
+			// Note: JSON unmarshaling converts numbers to float64
+			if replicas, ok := merged["replicas"].(float64); !ok || replicas != 3 {
+				t.Errorf("getServiceValuesMap() merged replicas = %v, want %v", merged["replicas"], float64(3))
+			}
+			// Should have service-specific override for imageTag
+			if merged["imageTag"] != "v1.0.0" {
+				t.Errorf("getServiceValuesMap() merged imageTag = %v, want %v", merged["imageTag"], "v1.0.0")
+			}
+		}
+	}
+
+	// Check service2 - should have merged values (global + service-specific)
+	if service2Data, ok := result["service2"]; !ok {
+		t.Error("getServiceValuesMap() should return data for service2")
+	} else {
+		merged, ok := service2Data["merged"].(map[string]interface{})
+		if !ok {
+			t.Error("getServiceValuesMap() should return merged values as map")
+		} else {
+			// Should have global defaults
+			if merged["namespace"] != "default" {
+				t.Errorf("getServiceValuesMap() merged namespace = %v, want %v", merged["namespace"], "default")
+			}
+			// Should have service-specific config
+			if config, ok := merged["config"].(map[string]interface{}); ok {
+				if config["enabled"] != true {
+					t.Errorf("getServiceValuesMap() merged config.enabled = %v, want %v", config["enabled"], true)
+				}
+			} else {
+				t.Error("getServiceValuesMap() should preserve nested config structure")
+			}
+		}
+	}
+}
+
+func TestGetServiceValuesMap_EmptySpec(t *testing.T) {
+	rec := setupTestReconciler(t, true)
+	handler, err := newTestHandler(t, WithTestReconciler(rec))
+	if err != nil {
+		t.Fatalf("newTestHandler() error = %v", err)
+	}
+
+	ctx := context.Background()
+	services := []string{"service1"}
+	result := handler.getServiceValuesMap(ctx, services, "default")
+
+	// Should return empty merged values when no CRD spec exists
+	if service1Data, ok := result["service1"]; !ok {
+		t.Error("getServiceValuesMap() should return data for service1 even with empty spec")
+	} else {
+		merged, ok := service1Data["merged"].(map[string]interface{})
+		if !ok {
+			t.Error("getServiceValuesMap() should return merged values as map")
+		} else {
+			if len(merged) != 0 {
+				t.Errorf("getServiceValuesMap() should return empty merged map when no spec exists, got %v", merged)
+			}
+		}
+	}
+}
+
+func TestDeploymentsPage_EmptySpec(t *testing.T) {
+	rec := setupTestReconciler(t, true)
+	handler, err := newTestHandler(t, WithTestReconciler(rec))
+	if err != nil {
+		t.Fatalf("newTestHandler() error = %v", err)
+	}
+
+	// Add a test service manifest
+	testManifest := createTestManifest("Service", "test-service", "default")
+	if err := handler.store.Create("default/Service/test-service", []byte(testManifest)); err != nil {
+		t.Fatalf("failed to create test manifest: %v", err)
+	}
+
+	// Don't create any CRD spec - should handle nil services gracefully
+	req := httptest.NewRequest("GET", "/deployments", nil)
+	w := httptest.NewRecorder()
+
+	handler.DeploymentsPage(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("DeploymentsPage() status code = %v, want %v", w.Code, http.StatusOK)
+	}
+
+	// Should render successfully even with empty spec
+	body := w.Body.String()
+	if body == "" {
+		t.Error("DeploymentsPage() returned empty body")
+	}
+}
+
+func TestMergeSchemaWithInstance(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]interface{}
+		instance map[string]interface{}
+		expected map[string]interface{}
+	}{
+		{
+			name: "schema with instance values",
+			schema: map[string]interface{}{
+				"global": map[string]interface{}{
+					"namespace": map[string]interface{}{},
+					"replicas":  map[string]interface{}{},
+				},
+				"services": map[string]interface{}{},
+			},
+			instance: map[string]interface{}{
+				"global": map[string]interface{}{
+					"namespace": "default",
+					"replicas":  float64(3),
+				},
+			},
+			expected: map[string]interface{}{
+				"global": map[string]interface{}{
+					"namespace": "default",
+					"replicas":  float64(3),
+				},
+				"services": map[string]interface{}{},
+			},
+		},
+		{
+			name: "empty schema with instance",
+			schema: map[string]interface{}{
+				"global":   map[string]interface{}{},
+				"services": map[string]interface{}{},
+			},
+			instance: map[string]interface{}{
+				"global": map[string]interface{}{
+					"namespace": "test",
+				},
+				"services": map[string]interface{}{
+					"service1": map[string]interface{}{
+						"replicas": float64(2),
+					},
+				},
+			},
+			expected: map[string]interface{}{
+				"global": map[string]interface{}{
+					"namespace": "test",
+				},
+				"services": map[string]interface{}{
+					"service1": map[string]interface{}{
+						"replicas": float64(2),
+					},
+				},
+			},
+		},
+		{
+			name: "nested schema with instance",
+			schema: map[string]interface{}{
+				"services": map[string]interface{}{
+					"config": map[string]interface{}{
+						"database": map[string]interface{}{
+							"host": map[string]interface{}{},
+						},
+					},
+				},
+			},
+			instance: map[string]interface{}{
+				"services": map[string]interface{}{
+					"api-service": map[string]interface{}{
+						"config": map[string]interface{}{
+							"database": map[string]interface{}{
+								"host": "localhost",
+								"port": float64(5432),
+							},
+						},
+					},
+				},
+			},
+			expected: map[string]interface{}{
+				"global": map[string]interface{}{},
+				"services": map[string]interface{}{
+					"api-service": map[string]interface{}{
+						"config": map[string]interface{}{
+							"database": map[string]interface{}{
+								"host": "localhost",
+								"port": float64(5432),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "schema template with multiple services",
+			schema: map[string]interface{}{
+				"services": map[string]interface{}{
+					"replicas": map[string]interface{}{},
+					"config":   map[string]interface{}{},
+				},
+			},
+			instance: map[string]interface{}{
+				"services": map[string]interface{}{
+					"service1": map[string]interface{}{
+						"replicas": float64(3),
+					},
+					"service2": map[string]interface{}{
+						"replicas": float64(2),
+						"config": map[string]interface{}{
+							"enabled": true,
+						},
+					},
+				},
+			},
+			expected: map[string]interface{}{
+				"global": map[string]interface{}{},
+				"services": map[string]interface{}{
+					"service1": map[string]interface{}{
+						"replicas": float64(3),
+						"config":   map[string]interface{}{},
+					},
+					"service2": map[string]interface{}{
+						"replicas": float64(2),
+						"config": map[string]interface{}{
+							"enabled": true,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := mergeSchemaWithInstance(tt.schema, tt.instance)
+			
+			// Verify global
+			if resultGlobal, ok := result["global"].(map[string]interface{}); ok {
+				if expectedGlobal, ok := tt.expected["global"].(map[string]interface{}); ok {
+					if !mapsEqual(resultGlobal, expectedGlobal) {
+						t.Errorf("mergeSchemaWithInstance() global = %v, want %v", resultGlobal, expectedGlobal)
+					}
+				}
+			}
+			
+			// Verify services
+			if resultServices, ok := result["services"].(map[string]interface{}); ok {
+				if expectedServices, ok := tt.expected["services"].(map[string]interface{}); ok {
+					if !mapsEqual(resultServices, expectedServices) {
+						t.Errorf("mergeSchemaWithInstance() services = %v, want %v", resultServices, expectedServices)
+					}
+				}
+			}
+		})
+	}
+}
+
+// mapsEqual compares two maps recursively for testing
+func mapsEqual(a, b map[string]interface{}) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if bv, ok := b[k]; !ok {
+			return false
+		} else {
+			if aMap, ok := v.(map[string]interface{}); ok {
+				if bMap, ok := bv.(map[string]interface{}); ok {
+					if !mapsEqual(aMap, bMap) {
+						return false
+					}
+				} else {
+					return false
+				}
+			} else if v != bv {
+				return false
+			}
+		}
+	}
+	return true
 }
