@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"time"
 
 	"github.com/go-logr/logr"
 
@@ -66,6 +67,8 @@ func (h *Handler) renderTemplate(w http.ResponseWriter, name string, data interf
 	}
 	templateData["AppName"] = h.appName
 	templateData["AppVersion"] = h.version
+	// Add cache busting timestamp for static assets
+	templateData["CacheBust"] = time.Now().Unix()
 	
 	if err := h.templates.ExecuteTemplate(w, name, templateData); err != nil {
 		return fmt.Errorf("failed to execute template %s: %w", name, err)

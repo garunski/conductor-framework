@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-//go:embed templates/pages/*.html templates/components/*.html templates/partials/*.html
+//go:embed templates/pages/*.html templates/components/*.html templates/partials/*.html templates/static/**/*
 var templateFiles embed.FS
 
 // TemplateFiles returns the embedded template filesystem

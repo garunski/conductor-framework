@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -63,7 +65,7 @@ func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.logger.V(1).Info("failed to get CRD schema, using sample schema for local development", "error", err)
 		// Use sample schema for local development/debugging
-		crdSchema = getSampleCRDSchema()
+		crdSchema = GetSampleCRDSchema()
 	}
 	
 	// Extract the spec schema from the CRD schema
@@ -76,7 +78,7 @@ func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 	
 	// If we still don't have a spec schema, use the sample one
 	if specSchema == nil || len(specSchema) == 0 {
-		sampleSchema := getSampleCRDSchema()
+		sampleSchema := GetSampleCRDSchema()
 		if properties, ok := sampleSchema["properties"].(map[string]interface{}); ok {
 			if spec, ok := properties["spec"].(map[string]interface{}); ok {
 				specSchema = spec
@@ -278,9 +280,62 @@ func detectNamespaceFromManifests(manifests map[string][]byte) string {
 	return mostCommon
 }
 
-// getSampleCRDSchema returns a sample CRD schema for local development/debugging
+// ServeStatic serves static files from the embedded filesystem
+func (h *Handler) ServeStatic(w http.ResponseWriter, r *http.Request) {
+	// Get the file path from the URL
+	path := strings.TrimPrefix(r.URL.Path, "/static/")
+	if path == "" {
+		http.NotFound(w, r)
+		return
+	}
+	
+	// Construct the full path in the embedded filesystem
+	fullPath := filepath.Join("templates/static", path)
+	
+	// Try to read the file from embedded filesystem
+	file, err := templateFiles.Open(fullPath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	defer file.Close()
+	
+	// Set content type based on file extension
+	ext := filepath.Ext(path)
+	switch ext {
+	case ".js":
+		w.Header().Set("Content-Type", "application/javascript")
+	case ".css":
+		w.Header().Set("Content-Type", "text/css")
+	case ".json":
+		w.Header().Set("Content-Type", "application/json")
+	case ".html":
+		w.Header().Set("Content-Type", "text/html")
+	default:
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+	
+	// Set cache headers - no cache for JS files to prevent stale code
+	if ext == ".js" {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+	} else {
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+	}
+	
+	// Read and serve the file content
+	_, err = io.Copy(w, file)
+	if err != nil {
+		h.logger.Error(err, "failed to serve static file", "path", path)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+}
+
+// GetSampleCRDSchema returns a sample CRD schema for local development/debugging
 // This is used when the real CRD cannot be fetched from the cluster
-func getSampleCRDSchema() map[string]interface{} {
+func GetSampleCRDSchema() map[string]interface{} {
 	return map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{

@@ -245,6 +245,42 @@ func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 	WriteJSONResponse(w, h.logger, http.StatusOK, result)
 }
 
+// GetParametersSchema returns the CRD schema for form generation
+func (h *Handler) GetParametersSchema(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	// Get CRD schema definition (raw OpenAPI schema) for form generation
+	crdSchema, err := h.parameterClient.GetCRDSchema(ctx)
+	if err != nil {
+		h.logger.V(1).Info("failed to get CRD schema, using sample schema for local development", "error", err)
+		// Use sample schema for local development/debugging
+		crdSchema = GetSampleCRDSchema()
+	}
+	
+	// Extract the spec schema from the CRD schema
+	var specSchema map[string]interface{}
+	if properties, ok := crdSchema["properties"].(map[string]interface{}); ok {
+		if spec, ok := properties["spec"].(map[string]interface{}); ok {
+			specSchema = spec
+		}
+	}
+	
+	// If we still don't have a spec schema, use the sample one
+	if specSchema == nil || len(specSchema) == 0 {
+		sampleSchema := GetSampleCRDSchema()
+		if properties, ok := sampleSchema["properties"].(map[string]interface{}); ok {
+			if spec, ok := properties["spec"].(map[string]interface{}); ok {
+				specSchema = spec
+			}
+		}
+	}
+	
+	if specSchema == nil {
+		specSchema = make(map[string]interface{})
+	}
+	
+	WriteJSONResponse(w, h.logger, http.StatusOK, specSchema)
+}
 
 // findServiceManifests searches for manifests matching the service name
 // Returns the manifest YAML bytes, preferring StatefulSet over Deployment if both exist

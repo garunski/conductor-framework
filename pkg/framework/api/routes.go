@@ -72,9 +72,13 @@ func (h *Handler) SetupRoutes() *chi.Mux {
 		r.Use(middleware.Timeout(30 * time.Second))
 		r.Get("/", h.GetParameters)
 		r.Post("/", h.UpdateParameters)
+		r.Get("/schema", h.GetParametersSchema)
 		r.Get("/values", h.GetServiceValues)
 		r.Get("/{service}", h.GetServiceParameters)
 	})
+
+	// Serve static files (JS, CSS, etc.)
+	r.Get("/static/*", h.ServeStatic)
 
 	return r
 }

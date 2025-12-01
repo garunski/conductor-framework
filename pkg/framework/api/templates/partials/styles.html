@@ -452,10 +452,11 @@
     .service-override-card {
         border: 2px solid var(--accent);
         background: var(--bg);
-        transition: all 0.2s;
+        transition: transform 0.2s, box-shadow 0.2s;
     }
     .service-override-card:hover {
-        box-shadow: 4px 4px 0 0 var(--accent);
+        transform: translate(-2px, -2px);
+        box-shadow: 10px 10px 0 0 var(--accent);
     }
 
     .service-details-modal {
@@ -534,6 +535,42 @@
         border-color: var(--color-success);
     }
 
+    /* Current Values Panel */
+    .current-values-panel {
+        max-height: 500px;
+        overflow-y: auto;
+        font-size: 0.875rem;
+    }
+    .current-values-panel code {
+        background: var(--bg);
+        padding: 0.125rem 0.25rem;
+        border-radius: 0;
+        border: 1px solid var(--accent3);
+        font-size: 0.8125rem;
+    }
+    
+    /* Collapse Arrow Animation */
+    .collapse-arrow {
+        display: inline-block;
+        transition: transform 0.2s;
+    }
+    
+    /* Loading States */
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+        border-width: 0.15em;
+    }
+    
+    /* Form Field Improvements */
+    .form-label {
+        margin-bottom: 0.5rem;
+    }
+    .form-control-sm {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
     /* Responsive */
     @media (max-width: 768px) {
         .service-selection-grid {
@@ -544,6 +581,52 @@
         }
         .service-overrides-grid {
             grid-template-columns: 1fr;
+        }
+        
+        /* Mobile: Stack form columns */
+        .col-lg-6 {
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Mobile: Smaller card padding */
+        .card-body {
+            padding: 1rem;
+        }
+        
+        /* Mobile: Touch-friendly buttons */
+        .btn {
+            min-height: 44px;
+            padding: 0.5rem 1rem;
+        }
+        
+        /* Mobile: Better spacing */
+        .mb-5 {
+            margin-bottom: 2rem !important;
+        }
+        
+        /* Mobile: Compact service cards */
+        .service-override-card .card-header {
+            padding: 0.75rem;
+        }
+        
+        .service-override-card .card-body {
+            padding: 1rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        /* Extra small screens */
+        .card-header h2, .card-header h3 {
+            font-size: 1.25rem;
+        }
+        
+        .card-header h4 {
+            font-size: 1rem;
+        }
+        
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
         }
     }
 </style>
