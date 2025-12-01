@@ -66,6 +66,11 @@
                 const dataValue = data && data[key];
                 const isConfigured = dataValue !== undefined && dataValue !== null && dataValue !== '';
                 
+                // Debug: log if description exists in schema
+                if (prop.description && path === 'global') {
+                    console.debug(`Field ${fieldPath} has description:`, prop.description);
+                }
+                
                 merged[key] = {
                     schema: prop,
                     value: dataValue,

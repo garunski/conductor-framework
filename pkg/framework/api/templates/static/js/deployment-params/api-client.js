@@ -16,10 +16,19 @@
             try {
                 const response = await fetch('/api/parameters/schema');
                 if (response.ok) {
-                    State.setCrdSchema(await response.json());
+                    const schema = await response.json();
+                    // Debug: log schema structure to verify descriptions are present
+                    console.debug('Loaded CRD schema:', schema);
+                    if (schema.properties && schema.properties.global && schema.properties.global.properties) {
+                        const namespaceProp = schema.properties.global.properties.namespace;
+                        console.debug('Namespace field schema:', namespaceProp);
+                        console.debug('Namespace description:', namespaceProp?.description);
+                    }
+                    State.setCrdSchema(schema);
                 }
             } catch (error) {
                 // Silently fail - schema is optional
+                console.error('Failed to fetch schema:', error);
             }
         },
         

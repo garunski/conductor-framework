@@ -17,213 +17,287 @@ spec:
             properties:
               global:
                 type: object
+                description: Global configuration parameters applied to all services
                 properties:
                   namespace:
                     type: string
                     default: "default"
+                    description: Kubernetes namespace where resources will be deployed
                   namePrefix:
                     type: string
                     default: ""
+                    description: Prefix to add to all resource names
                   replicas:
                     type: integer
                     default: 1
+                    description: Default number of replicas for deployments
                   imageTag:
                     type: string
+                    description: Default container image tag to use for all services
                   imageRegistry:
                     type: string
                     default: ""
+                    description: Container image registry URL (e.g., docker.io, gcr.io)
                   imagePullSecrets:
                     type: array
+                    description: List of image pull secrets for private registries
                     items:
                       type: object
                       properties:
                         name:
                           type: string
+                          description: Name of the Kubernetes secret containing registry credentials
                   storageClassName:
                     type: string
                     default: "local-path"
+                    description: Storage class name for persistent volumes
                   keepPVC:
                     type: boolean
                     default: false
+                    description: Whether to keep PersistentVolumeClaims when services are deleted
                   resources:
                     type: object
+                    description: Default resource requests and limits for containers
                     properties:
                       requests:
                         type: object
+                        description: Minimum resources required by the container
                         properties:
                           memory:
                             type: string
+                            description: Memory request (e.g., "128Mi", "1Gi")
                           cpu:
                             type: string
+                            description: CPU request (e.g., "100m", "0.5")
                       limits:
                         type: object
+                        description: Maximum resources allowed for the container
                         properties:
                           memory:
                             type: string
+                            description: Memory limit (e.g., "256Mi", "2Gi")
                           cpu:
                             type: string
+                            description: CPU limit (e.g., "500m", "1")
                   storageSize:
                     type: string
+                    description: Default storage size for persistent volumes (e.g., "10Gi")
                   labels:
                     type: object
+                    description: Labels to apply to all resources
                     additionalProperties:
                       type: string
                   annotations:
                     type: object
+                    description: Annotations to apply to all resources
                     additionalProperties:
                       type: string
                   nodeSelector:
                     type: object
+                    description: Node selector constraints for pod scheduling
                     additionalProperties:
                       type: string
                   tolerations:
                     type: array
+                    description: Tolerations to allow pods to be scheduled on tainted nodes
                     items:
                       type: object
               services:
                 type: object
+                description: Service-specific configuration parameters that override global settings
                 additionalProperties:
                   type: object
                   additionalProperties: true
                   properties:
                     namespace:
                       type: string
+                      description: Kubernetes namespace for this service (overrides global namespace)
                     namePrefix:
                       type: string
+                      description: Name prefix for this service (overrides global namePrefix)
                     replicas:
                       type: integer
+                      description: Number of replicas for this service (overrides global replicas)
                     imageTag:
                       type: string
+                      description: Container image tag for this service (overrides global imageTag)
                     resources:
                       type: object
+                      description: Resource requests and limits for this service (overrides global resources)
                       properties:
                         requests:
                           type: object
+                          description: Minimum resources required by the container
                           properties:
                             memory:
                               type: string
+                              description: Memory request (e.g., "128Mi", "1Gi")
                             cpu:
                               type: string
+                              description: CPU request (e.g., "100m", "0.5")
                         limits:
                           type: object
+                          description: Maximum resources allowed for the container
                           properties:
                             memory:
                               type: string
+                              description: Memory limit (e.g., "256Mi", "2Gi")
                             cpu:
                               type: string
+                              description: CPU limit (e.g., "500m", "1")
                     storageSize:
                       type: string
+                      description: Storage size for persistent volumes (e.g., "10Gi")
                     labels:
                       type: object
+                      description: Labels to apply to this service's resources
                       additionalProperties:
                         type: string
                     annotations:
                       type: object
+                      description: Annotations to apply to this service's resources
                       additionalProperties:
                         type: string
                     nodeSelector:
                       type: object
+                      description: Node selector constraints for this service's pods
                       additionalProperties:
                         type: string
                     tolerations:
                       type: array
+                      description: Tolerations for this service's pods
                       items:
                         type: object
                     image:
                       type: string
+                      description: Container image name (without tag or registry)
                     port:
                       type: integer
+                      description: Container port number for the service
                     config:
                       type: object
+                      description: Application-specific configuration parameters
                       additionalProperties: true
                       properties:
                         database:
                           type: object
+                          description: Database connection configuration
                           additionalProperties: true
                           properties:
                             host:
                               type: string
+                              description: Database hostname or IP address
                             port:
                               type: integer
+                              description: Database port number
                         features:
                           type: object
+                          description: Feature flags and application features configuration
                           additionalProperties: true
                         apiEndpoint:
                           type: string
+                          description: API endpoint URL for the service
                         env:
                           type: string
+                          description: Environment name (e.g., "production", "staging", "development")
                         debug:
                           type: boolean
+                          description: Enable debug mode for the application
                         maxmemory:
                           type: string
+                          description: Maximum memory setting (e.g., for Redis: "256mb")
                         maxmemory-policy:
                           type: string
+                          description: Memory eviction policy (e.g., for Redis: "allkeys-lru")
                     ingress:
                       type: object
+                      description: Ingress configuration for external access
                       additionalProperties: true
                       properties:
                         enabled:
                           type: boolean
+                          description: Enable ingress for this service
                         host:
                           type: string
+                          description: Hostname for the ingress (e.g., "api.example.com")
                         tls:
                           type: object
+                          description: TLS/SSL configuration for the ingress
                           additionalProperties: true
                           properties:
                             enabled:
                               type: boolean
+                              description: Enable TLS for the ingress
                             secretName:
                               type: string
+                              description: Name of the Kubernetes secret containing TLS certificates
                         annotations:
                           type: object
+                          description: Ingress-specific annotations (e.g., cert-manager, nginx)
                           additionalProperties:
                             type: string
                     service:
                       type: object
+                      description: Kubernetes Service configuration
                       additionalProperties: true
                       properties:
                         type:
                           type: string
+                          description: Service type (ClusterIP, NodePort, LoadBalancer, ExternalName)
                         annotations:
                           type: object
+                          description: Service-specific annotations
                           additionalProperties:
                             type: string
                     livenessProbe:
                       type: object
+                      description: Liveness probe configuration to detect unhealthy containers
                       additionalProperties: true
                       properties:
                         httpGet:
                           type: object
+                          description: HTTP GET probe configuration
                           additionalProperties: true
                           properties:
                             path:
                               type: string
+                              description: HTTP path to check (e.g., "/healthz")
                             port:
                               type: integer
+                              description: Port number for the health check
                         initialDelaySeconds:
                           type: integer
+                          description: Number of seconds to wait before starting liveness probes
                     readinessProbe:
                       type: object
+                      description: Readiness probe configuration to detect when containers are ready to serve traffic
                       additionalProperties: true
                       properties:
                         httpGet:
                           type: object
+                          description: HTTP GET probe configuration
                           additionalProperties: true
                           properties:
                             path:
                               type: string
+                              description: HTTP path to check (e.g., "/readyz")
                             port:
                               type: integer
+                              description: Port number for the health check
                         initialDelaySeconds:
                           type: integer
+                          description: Number of seconds to wait before starting readiness probes
                     persistence:
                       type: object
+                      description: Persistent storage configuration for stateful services
                       additionalProperties: true
                       properties:
                         enabled:
                           type: boolean
+                          description: Enable persistent storage for this service
                         size:
                           type: string
+                          description: Size of the persistent volume (e.g., "10Gi", "100Gi")
   scope: Namespaced
   names:
     plural: deploymentparameters

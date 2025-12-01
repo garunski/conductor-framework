@@ -23,6 +23,10 @@
                         <small class="text-muted">Configure all available fields</small>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
+                        <div class="view-toggle-selector" role="group" aria-label="Filter selector">
+                            <button type="button" class="view-toggle-option" id="filter-k8s" aria-label="Show Kubernetes parameters" aria-pressed="true">K8S Values</button>
+                            <button type="button" class="view-toggle-option" id="filter-custom" aria-label="Show custom values only" aria-pressed="false">Custom Values</button>
+                        </div>
                         <div class="view-toggle-selector" role="group" aria-label="View selector">
                             <button type="button" class="view-toggle-option" id="view-toggle-fields" data-view="fields" aria-label="Fields view" aria-pressed="true">Fields</button>
                             <button type="button" class="view-toggle-option" id="view-toggle-yaml" data-view="yaml" aria-label="YAML view" aria-pressed="false">Yaml</button>

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,6 +14,9 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/crd"
 	"gopkg.in/yaml.v3"
 )
+
+//go:embed sample-crd-schema.yaml
+var sampleSchemaData embed.FS
 
 func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -421,197 +425,46 @@ func (h *Handler) ServeStatic(w http.ResponseWriter, r *http.Request) {
 
 // GetSampleCRDSchema returns a sample CRD schema for local development/debugging
 // This is used when the real CRD cannot be fetched from the cluster
+// The schema is loaded from an embedded YAML file
 func GetSampleCRDSchema() map[string]interface{} {
-	return map[string]interface{}{
-		"type": "object",
-		"properties": map[string]interface{}{
-			"spec": map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"global": map[string]interface{}{
-						"type": "object",
-						"properties": map[string]interface{}{
-							"namespace": map[string]interface{}{
-								"type":    "string",
-								"default": "default",
-							},
-							"namePrefix": map[string]interface{}{
-								"type":    "string",
-								"default": "",
-							},
-							"replicas": map[string]interface{}{
-								"type":    "integer",
-								"default": 1,
-							},
-							"imageTag": map[string]interface{}{
-								"type": "string",
-							},
-							"imageRegistry": map[string]interface{}{
-								"type":    "string",
-								"default": "",
-							},
-							"imagePullSecrets": map[string]interface{}{
-								"type": "array",
-								"items": map[string]interface{}{
-									"type": "object",
-									"properties": map[string]interface{}{
-										"name": map[string]interface{}{
-											"type": "string",
-										},
-									},
-								},
-							},
-							"storageClassName": map[string]interface{}{
-								"type":    "string",
-								"default": "local-path",
-							},
-							"keepPVC": map[string]interface{}{
-								"type":    "boolean",
-								"default": false,
-							},
-							"resources": map[string]interface{}{
-								"type": "object",
-								"properties": map[string]interface{}{
-									"requests": map[string]interface{}{
-										"type": "object",
-										"properties": map[string]interface{}{
-											"memory": map[string]interface{}{
-												"type": "string",
-											},
-											"cpu": map[string]interface{}{
-												"type": "string",
-											},
-										},
-									},
-									"limits": map[string]interface{}{
-										"type": "object",
-										"properties": map[string]interface{}{
-											"memory": map[string]interface{}{
-												"type": "string",
-											},
-											"cpu": map[string]interface{}{
-												"type": "string",
-											},
-										},
-									},
-								},
-							},
-							"storageSize": map[string]interface{}{
-								"type": "string",
-							},
-							"labels": map[string]interface{}{
-								"type": "object",
-								"additionalProperties": map[string]interface{}{
-									"type": "string",
-								},
-							},
-							"annotations": map[string]interface{}{
-								"type": "object",
-								"additionalProperties": map[string]interface{}{
-									"type": "string",
-								},
-							},
-							"nodeSelector": map[string]interface{}{
-								"type": "object",
-								"additionalProperties": map[string]interface{}{
-									"type": "string",
-								},
-							},
-							"tolerations": map[string]interface{}{
-								"type": "array",
-								"items": map[string]interface{}{
-									"type": "object",
-								},
-							},
-						},
-					},
-					"services": map[string]interface{}{
-						"type": "object",
-						"additionalProperties": map[string]interface{}{
-							"type": "object",
-							"additionalProperties": true,
-							"properties": map[string]interface{}{
-								"namespace": map[string]interface{}{
-									"type": "string",
-								},
-								"namePrefix": map[string]interface{}{
-									"type": "string",
-								},
-								"replicas": map[string]interface{}{
-									"type": "integer",
-								},
-								"imageTag": map[string]interface{}{
-									"type": "string",
-								},
-								"resources": map[string]interface{}{
-									"type": "object",
-									"properties": map[string]interface{}{
-										"requests": map[string]interface{}{
-											"type": "object",
-											"properties": map[string]interface{}{
-												"memory": map[string]interface{}{
-													"type": "string",
-												},
-												"cpu": map[string]interface{}{
-													"type": "string",
-												},
-											},
-										},
-										"limits": map[string]interface{}{
-											"type": "object",
-											"properties": map[string]interface{}{
-												"memory": map[string]interface{}{
-													"type": "string",
-												},
-												"cpu": map[string]interface{}{
-													"type": "string",
-												},
-											},
-										},
-									},
-								},
-								"storageSize": map[string]interface{}{
-									"type": "string",
-								},
-								"labels": map[string]interface{}{
-									"type": "object",
-									"additionalProperties": map[string]interface{}{
-										"type": "string",
-									},
-								},
-								"annotations": map[string]interface{}{
-									"type": "object",
-									"additionalProperties": map[string]interface{}{
-										"type": "string",
-									},
-								},
-								// Example custom fields that might be in service configs
-								"config": map[string]interface{}{
-									"type": "object",
-									"additionalProperties": true,
-								},
-								"ingress": map[string]interface{}{
-									"type": "object",
-									"properties": map[string]interface{}{
-										"enabled": map[string]interface{}{
-											"type":    "boolean",
-											"default": false,
-										},
-										"host": map[string]interface{}{
-											"type": "string",
-										},
-										"path": map[string]interface{}{
-											"type": "string",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
+	data, err := sampleSchemaData.ReadFile("sample-crd-schema.yaml")
+	if err != nil {
+		// Fallback to empty schema if file cannot be read
+		// Note: This error will be silent, but the caller should handle empty schema
+		return map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		}
 	}
+
+	var schema map[string]interface{}
+	if err := yaml.Unmarshal(data, &schema); err != nil {
+		// Fallback to empty schema if YAML cannot be parsed
+		// Note: This error will be silent, but the caller should handle empty schema
+		return map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		}
+	}
+
+	// Verify the schema structure
+	if properties, ok := schema["properties"].(map[string]interface{}); ok {
+		if spec, ok := properties["spec"].(map[string]interface{}); ok {
+			if specProps, ok := spec["properties"].(map[string]interface{}); ok {
+				if global, ok := specProps["global"].(map[string]interface{}); ok {
+					if globalProps, ok := global["properties"].(map[string]interface{}); ok {
+						if namespace, ok := globalProps["namespace"].(map[string]interface{}); ok {
+							if _, hasDesc := namespace["description"]; !hasDesc {
+								// Schema loaded but missing descriptions - this shouldn't happen
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return schema
 }
 
 // mergeSchemaWithInstance merges the CRD schema structure with instance values

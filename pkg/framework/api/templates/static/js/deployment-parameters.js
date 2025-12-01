@@ -70,6 +70,16 @@
             if (yamlToggle) {
                 yamlToggle.setAttribute('aria-pressed', 'false');
             }
+            // Initialize filter toggle state - K8S is active by default (show all fields)
+            const filterK8sBtn = document.getElementById('filter-k8s');
+            const filterCustomBtn = document.getElementById('filter-custom');
+            if (filterK8sBtn) {
+                filterK8sBtn.setAttribute('aria-pressed', 'true');
+            }
+            if (filterCustomBtn) {
+                filterCustomBtn.setAttribute('aria-pressed', 'false');
+            }
+            State.setFilterNonDefaultK8s(false);
         }).catch(error => {
             // Still try to initialize even if schema/deployed values fail
             YamlEditor.initialize();
@@ -83,6 +93,16 @@
             if (yamlToggle) {
                 yamlToggle.setAttribute('aria-pressed', 'false');
             }
+            // Initialize filter toggle state - K8S is active by default (show all fields)
+            const filterK8sBtn = document.getElementById('filter-k8s');
+            const filterCustomBtn = document.getElementById('filter-custom');
+            if (filterK8sBtn) {
+                filterK8sBtn.setAttribute('aria-pressed', 'true');
+            }
+            if (filterCustomBtn) {
+                filterCustomBtn.setAttribute('aria-pressed', 'false');
+            }
+            State.setFilterNonDefaultK8s(false);
         });
     }
     
@@ -125,6 +145,40 @@
         const viewDeployedBtn = document.getElementById('btn-view-deployed');
         if (viewDeployedBtn) {
             State.addEventListener(viewDeployedBtn, 'click', ApiClient.showDeployedValues);
+        }
+        
+        // Filter toggle buttons (K8S / Custom Values)
+        const filterK8sBtn = document.getElementById('filter-k8s');
+        const filterCustomBtn = document.getElementById('filter-custom');
+        
+        const updateFilterState = function(showCustomOnly) {
+            if (filterK8sBtn) {
+                filterK8sBtn.setAttribute('aria-pressed', (!showCustomOnly).toString());
+            }
+            if (filterCustomBtn) {
+                filterCustomBtn.setAttribute('aria-pressed', showCustomOnly.toString());
+            }
+            State.setFilterNonDefaultK8s(showCustomOnly);
+            // Only re-render if we're in fields view
+            const fieldsContainer = document.getElementById('configurable-fields-container');
+            const editorContainer = document.getElementById('yaml-editor-container');
+            const isFieldsView = fieldsContainer && !fieldsContainer.classList.contains('hidden') && 
+                                (!editorContainer || !editorContainer.classList.contains('active'));
+            if (isFieldsView) {
+                FieldRenderer.renderAll();
+            }
+        };
+        
+        if (filterK8sBtn) {
+            State.addEventListener(filterK8sBtn, 'click', function() {
+                updateFilterState(false);
+            });
+        }
+        
+        if (filterCustomBtn) {
+            State.addEventListener(filterCustomBtn, 'click', function() {
+                updateFilterState(true);
+            });
         }
         
         // Reset button

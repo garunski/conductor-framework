@@ -1,0 +1,207 @@
+type: object
+properties:
+  spec:
+    type: object
+    properties:
+      global:
+        type: object
+        description: Global configuration parameters applied to all services
+        properties:
+          namespace:
+            type: string
+            default: "default"
+            description: Kubernetes namespace where resources will be deployed
+          namePrefix:
+            type: string
+            default: ""
+            description: Prefix to add to all resource names
+          replicas:
+            type: integer
+            default: 1
+            description: Default number of replicas for deployments
+          imageTag:
+            type: string
+            description: Default container image tag to use for all services
+          imageRegistry:
+            type: string
+            default: ""
+            description: Container image registry URL (e.g., docker.io, gcr.io)
+          imagePullSecrets:
+            type: array
+            description: List of image pull secrets for private registries
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Name of the Kubernetes secret containing registry credentials
+          storageClassName:
+            type: string
+            default: "local-path"
+            description: Storage class name for persistent volumes
+          keepPVC:
+            type: boolean
+            default: false
+            description: Whether to keep PersistentVolumeClaims when services are deleted
+          resources:
+            type: object
+            description: Default resource requests and limits for containers
+            properties:
+              requests:
+                type: object
+                description: Minimum resources required by the container
+                properties:
+                  memory:
+                    type: string
+                    description: Memory request (e.g., "128Mi", "1Gi")
+                  cpu:
+                    type: string
+                    description: CPU request (e.g., "100m", "0.5")
+              limits:
+                type: object
+                description: Maximum resources allowed for the container
+                properties:
+                  memory:
+                    type: string
+                    description: Memory limit (e.g., "256Mi", "2Gi")
+                  cpu:
+                    type: string
+                    description: CPU limit (e.g., "500m", "1")
+          storageSize:
+            type: string
+            description: Default storage size for persistent volumes (e.g., "10Gi")
+          labels:
+            type: object
+            description: Labels to apply to all resources
+            additionalProperties:
+              type: string
+          annotations:
+            type: object
+            description: Annotations to apply to all resources
+            additionalProperties:
+              type: string
+          nodeSelector:
+            type: object
+            description: Node selector constraints for pod scheduling
+            additionalProperties:
+              type: string
+          tolerations:
+            type: array
+            description: Tolerations to allow pods to be scheduled on tainted nodes
+            items:
+              type: object
+      services:
+        type: object
+        description: Service-specific configuration parameters that override global settings
+        additionalProperties:
+          type: object
+          additionalProperties: true
+          properties:
+            namespace:
+              type: string
+              description: Kubernetes namespace for this service (overrides global namespace)
+            namePrefix:
+              type: string
+              description: Name prefix for this service (overrides global namePrefix)
+            replicas:
+              type: integer
+              description: Number of replicas for this service (overrides global replicas)
+            imageTag:
+              type: string
+              description: Container image tag for this service (overrides global imageTag)
+            resources:
+              type: object
+              description: Resource requests and limits for this service (overrides global resources)
+              properties:
+                requests:
+                  type: object
+                  description: Minimum resources required by the container
+                  properties:
+                    memory:
+                      type: string
+                      description: Memory request (e.g., "128Mi", "1Gi")
+                    cpu:
+                      type: string
+                      description: CPU request (e.g., "100m", "0.5")
+                limits:
+                  type: object
+                  description: Maximum resources allowed for the container
+                  properties:
+                    memory:
+                      type: string
+                      description: Memory limit (e.g., "256Mi", "2Gi")
+                    cpu:
+                      type: string
+                      description: CPU limit (e.g., "500m", "1")
+            storageSize:
+              type: string
+              description: Storage size for persistent volumes (e.g., "10Gi")
+            labels:
+              type: object
+              description: Labels to apply to this service's resources
+              additionalProperties:
+                type: string
+            annotations:
+              type: object
+              description: Annotations to apply to this service's resources
+              additionalProperties:
+                type: string
+            nodeSelector:
+              type: object
+              description: Node selector constraints for this service's pods
+              additionalProperties:
+                type: string
+            tolerations:
+              type: array
+              description: Tolerations for this service's pods
+              items:
+                type: object
+            image:
+              type: string
+              description: Container image name (without tag or registry)
+            port:
+              type: integer
+              description: Container port number for the service
+            config:
+              type: object
+              description: Application-specific configuration parameters
+              additionalProperties: true
+            ingress:
+              type: object
+              description: Ingress configuration for external access
+              additionalProperties: true
+              properties:
+                enabled:
+                  type: boolean
+                  description: Enable ingress for this service
+                host:
+                  type: string
+                  description: Hostname for the ingress (e.g., "api.example.com")
+            service:
+              type: object
+              description: Kubernetes Service configuration
+              additionalProperties: true
+              properties:
+                type:
+                  type: string
+                  description: Service type (ClusterIP, NodePort, LoadBalancer, ExternalName)
+            livenessProbe:
+              type: object
+              description: Liveness probe configuration to detect unhealthy containers
+              additionalProperties: true
+            readinessProbe:
+              type: object
+              description: Readiness probe configuration to detect when containers are ready to serve traffic
+              additionalProperties: true
+            persistence:
+              type: object
+              description: Persistent storage configuration for stateful services
+              additionalProperties: true
+              properties:
+                enabled:
+                  type: boolean
+                  description: Enable persistent storage for this service
+                size:
+                  type: string
+                  description: Size of the persistent volume (e.g., "10Gi", "100Gi")
+

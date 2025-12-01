@@ -11,6 +11,55 @@
     const YamlUtils = DeploymentParams.YamlUtils;
     
     DeploymentParams.FieldRenderer = {
+        // List of default Kubernetes parameter field names
+        defaultK8sFields: new Set([
+            'namespace',
+            'namePrefix',
+            'imageRegistry',
+            'imagePullSecrets',
+            'storageClassName',
+            'keepPVC',
+            'replicas',
+            'image',
+            'imageTag',
+            'port',
+            'resources',
+            'livenessProbe',
+            'readinessProbe',
+            'service',
+            'ingress',
+            'persistence'
+        ]),
+        
+        isDefaultK8sField: function(fieldName) {
+            return this.defaultK8sFields.has(fieldName);
+        },
+        
+        filterFields: function(fields, filterNonDefault) {
+            if (!filterNonDefault) {
+                return fields;
+            }
+            
+            const filtered = {};
+            Object.keys(fields).forEach(key => {
+                const field = fields[key];
+                const fieldName = key;
+                
+                // Check if this is a default k8s field
+                if (this.isDefaultK8sField(fieldName)) {
+                    return; // Skip default k8s fields
+                }
+                
+                // Include the field, but also filter nested fields if they exist
+                filtered[key] = { ...field };
+                if (field.nested && Object.keys(field.nested).length > 0) {
+                    filtered[key].nested = this.filterFields(field.nested, filterNonDefault);
+                }
+            });
+            
+            return filtered;
+        },
+        
         renderAll: function() {
             const container = document.getElementById('configurable-fields-content');
             if (!container) return;
@@ -27,13 +76,18 @@
             
             container.textContent = '';
             
+            const filterNonDefault = State.getFilterNonDefaultK8s();
+            
             const globalSchema = State.getGlobalSchema();
             if (globalSchema) {
                 const instanceData = State.getInstanceData();
                 const globalData = instanceData.global || {};
                 const mergedGlobal = SchemaManager.mergeSchemaWithData(globalSchema, globalData, 'global');
-                const globalGroup = this.renderFieldGroup('Global Configuration', 'global', mergedGlobal);
-                container.appendChild(globalGroup);
+                const filteredGlobal = this.filterFields(mergedGlobal, filterNonDefault);
+                if (Object.keys(filteredGlobal).length > 0) {
+                    const globalGroup = this.renderFieldGroup('Global Configuration', 'global', filteredGlobal);
+                    container.appendChild(globalGroup);
+                }
             }
             
             const serviceSchemaTemplate = State.getServiceSchemaTemplate();
@@ -43,15 +97,20 @@
                 services.forEach(serviceName => {
                     const serviceData = (instanceData.services && instanceData.services[serviceName]) || {};
                     const mergedService = SchemaManager.mergeSchemaWithData(serviceSchemaTemplate, serviceData, `services.${serviceName}`);
-                    const serviceGroup = this.renderFieldGroup(serviceName, `services.${serviceName}`, mergedService);
-                    container.appendChild(serviceGroup);
+                    const filteredService = this.filterFields(mergedService, filterNonDefault);
+                    if (Object.keys(filteredService).length > 0) {
+                        const serviceGroup = this.renderFieldGroup(serviceName, `services.${serviceName}`, filteredService);
+                        container.appendChild(serviceGroup);
+                    }
                 });
             }
             
             if (container.children.length === 0) {
                 const alert = document.createElement('div');
                 alert.className = 'alert alert-info';
-                alert.textContent = 'No configurable fields available';
+                alert.textContent = filterNonDefault 
+                    ? 'No non-default Kubernetes parameters available' 
+                    : 'No configurable fields available';
                 container.appendChild(alert);
             }
             
@@ -117,6 +176,17 @@
             
             fieldDiv.appendChild(labelDiv);
             
+            // Field description (show right after label for better visibility)
+            if (field.schema && field.schema.description) {
+                const descDiv = document.createElement('div');
+                descDiv.className = 'config-field-description';
+                descDiv.textContent = field.schema.description;
+                fieldDiv.appendChild(descDiv);
+            } else if (field.schema && !field.schema.description && field.path) {
+                // Debug: log when schema exists but description is missing
+                console.debug('Field missing description:', field.path, 'schema:', field.schema);
+            }
+            
             // Field value
             const hasNestedFields = field.nested && Object.keys(field.nested).length > 0;
             const showValue = isConfigured && !(field.type === 'object' && hasNestedFields);
@@ -151,14 +221,6 @@
             }
             
             fieldDiv.appendChild(valueDiv);
-            
-            // Field description
-            if (field.schema && field.schema.description) {
-                const descDiv = document.createElement('div');
-                descDiv.className = 'config-field-description';
-                descDiv.textContent = field.schema.description;
-                fieldDiv.appendChild(descDiv);
-            }
             
             // Default value hint
             if (!isConfigured && field.schema && field.schema.default !== undefined) {

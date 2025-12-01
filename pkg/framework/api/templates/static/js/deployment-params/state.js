@@ -14,7 +14,8 @@
         originalYaml: '',
         serviceSchemaTemplate: null,
         globalSchema: null,
-        eventListeners: []
+        eventListeners: [],
+        filterNonDefaultK8s: false
     };
     
     DeploymentParams.State = {
@@ -84,6 +85,14 @@
         
         setGlobalSchema: function(schema) {
             state.globalSchema = schema;
+        },
+        
+        getFilterNonDefaultK8s: function() {
+            return state.filterNonDefaultK8s;
+        },
+        
+        setFilterNonDefaultK8s: function(value) {
+            state.filterNonDefaultK8s = value;
         },
         
         addEventListener: function(element, event, handler) {

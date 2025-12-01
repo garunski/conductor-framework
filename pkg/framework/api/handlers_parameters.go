@@ -251,10 +251,12 @@ func (h *Handler) GetParametersSchema(w http.ResponseWriter, r *http.Request) {
 	
 	// Get CRD schema definition (raw OpenAPI schema) for form generation
 	crdSchema, err := h.parameterClient.GetCRDSchema(ctx)
+	usingSample := false
 	if err != nil {
-		h.logger.V(1).Info("failed to get CRD schema, using sample schema for local development", "error", err)
+		h.logger.Info("failed to get CRD schema, using sample schema for local development", "error", err)
 		// Use sample schema for local development/debugging
 		crdSchema = GetSampleCRDSchema()
+		usingSample = true
 	}
 	
 	// Extract the spec schema from the CRD schema
@@ -267,16 +269,46 @@ func (h *Handler) GetParametersSchema(w http.ResponseWriter, r *http.Request) {
 	
 	// If we still don't have a spec schema, use the sample one
 	if specSchema == nil || len(specSchema) == 0 {
+		h.logger.Info("spec schema not found in CRD, using sample schema")
 		sampleSchema := GetSampleCRDSchema()
 		if properties, ok := sampleSchema["properties"].(map[string]interface{}); ok {
 			if spec, ok := properties["spec"].(map[string]interface{}); ok {
 				specSchema = spec
+				usingSample = true
 			}
 		}
 	}
 	
 	if specSchema == nil {
 		specSchema = make(map[string]interface{})
+	}
+	
+	// Debug: Check if descriptions are present in the returned schema
+	if usingSample {
+		h.logger.Info("using sample schema for /api/parameters/schema")
+		if specProps, ok := specSchema["properties"].(map[string]interface{}); ok {
+			if global, ok := specProps["global"].(map[string]interface{}); ok {
+				if globalProps, ok := global["properties"].(map[string]interface{}); ok {
+					if namespace, ok := globalProps["namespace"].(map[string]interface{}); ok {
+						if desc, ok := namespace["description"].(string); ok {
+							h.logger.Info("sample schema has description for namespace field", "description", desc)
+						} else {
+							h.logger.Info("sample schema missing description for namespace field", "namespace", namespace)
+						}
+					} else {
+						h.logger.Info("namespace field not found in global properties")
+					}
+				} else {
+					h.logger.Info("global properties not found")
+				}
+			} else {
+				h.logger.Info("global not found in spec properties")
+			}
+		} else {
+			h.logger.Info("spec properties not found in specSchema")
+		}
+	} else {
+		h.logger.Info("using CRD schema from cluster (not sample schema)")
 	}
 	
 	WriteJSONResponse(w, h.logger, http.StatusOK, specSchema)
