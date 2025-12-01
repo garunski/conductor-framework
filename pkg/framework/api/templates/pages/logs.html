@@ -22,7 +22,7 @@
                             <h2>Reconciliation Logs</h2>
                             <p class="card-description mb-0">View reconciliation events, errors, and status updates</p>
                         </div>
-                        <button class="btn btn-sm" onclick="loadLogs()" data-bs-toggle="tooltip" data-bs-title="Refresh logs">
+                        <button class="btn btn-sm" onclick="loadLogs()">
                             REFRESH
                         </button>
                     </div>
@@ -265,15 +265,9 @@
             loadLogs();
         }
 
-        // Initialize dropdowns, filters, tooltips and load logs
+        // Initialize dropdowns, filters and load logs
         initDropdowns();
         initFilters();
-        
-        // Initialize tooltips
-        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltipTriggerList.forEach(tooltipTriggerEl => {
-            new bootstrap.Tooltip(tooltipTriggerEl);
-        });
         
         loadLogs();
 

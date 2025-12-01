@@ -129,6 +129,101 @@ spec:
                       type: array
                       items:
                         type: object
+                    image:
+                      type: string
+                    port:
+                      type: integer
+                    config:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        database:
+                          type: object
+                          additionalProperties: true
+                          properties:
+                            host:
+                              type: string
+                            port:
+                              type: integer
+                        features:
+                          type: object
+                          additionalProperties: true
+                        apiEndpoint:
+                          type: string
+                        env:
+                          type: string
+                        debug:
+                          type: boolean
+                        maxmemory:
+                          type: string
+                        maxmemory-policy:
+                          type: string
+                    ingress:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        enabled:
+                          type: boolean
+                        host:
+                          type: string
+                        tls:
+                          type: object
+                          additionalProperties: true
+                          properties:
+                            enabled:
+                              type: boolean
+                            secretName:
+                              type: string
+                        annotations:
+                          type: object
+                          additionalProperties:
+                            type: string
+                    service:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        type:
+                          type: string
+                        annotations:
+                          type: object
+                          additionalProperties:
+                            type: string
+                    livenessProbe:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        httpGet:
+                          type: object
+                          additionalProperties: true
+                          properties:
+                            path:
+                              type: string
+                            port:
+                              type: integer
+                        initialDelaySeconds:
+                          type: integer
+                    readinessProbe:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        httpGet:
+                          type: object
+                          additionalProperties: true
+                          properties:
+                            path:
+                              type: string
+                            port:
+                              type: integer
+                        initialDelaySeconds:
+                          type: integer
+                    persistence:
+                      type: object
+                      additionalProperties: true
+                      properties:
+                        enabled:
+                          type: boolean
+                        size:
+                          type: string
   scope: Namespaced
   names:
     plural: deploymentparameters

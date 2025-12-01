@@ -18,6 +18,7 @@ func (h *Handler) SetupRoutes() *chi.Mux {
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Timeout(30 * time.Second))
 		r.Get("/", h.HomePage)
+		r.Get("/parameters", h.ParametersPage)
 		r.Get("/deployments", h.DeploymentsPage)
 		r.Get("/logs", h.LogsPage)
 	})

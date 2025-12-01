@@ -135,6 +135,92 @@ func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) ParametersPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	
+	// Get list of services from manifest directories
+	services := h.getServiceNames()
+	
+	// Detect namespace from manifests (try to find the most common namespace)
+	manifests := h.store.List()
+	detectedNamespace := detectNamespaceFromManifests(manifests)
+	if detectedNamespace == "" {
+		detectedNamespace = "default"
+	}
+	
+	// Get CRD schema definition (raw OpenAPI schema) for form generation
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	
+	crdSchema, err := h.parameterClient.GetCRDSchema(ctx)
+	if err != nil {
+		h.logger.V(1).Info("failed to get CRD schema, using sample schema for local development", "error", err)
+		crdSchema = GetSampleCRDSchema()
+	}
+	
+	// Extract the spec schema from the CRD schema
+	var specSchema map[string]interface{}
+	if properties, ok := crdSchema["properties"].(map[string]interface{}); ok {
+		if spec, ok := properties["spec"].(map[string]interface{}); ok {
+			specSchema = spec
+		}
+	}
+	
+	// If we still don't have a spec schema, use the sample one
+	if specSchema == nil || len(specSchema) == 0 {
+		sampleSchema := GetSampleCRDSchema()
+		if properties, ok := sampleSchema["properties"].(map[string]interface{}); ok {
+			if spec, ok := properties["spec"].(map[string]interface{}); ok {
+				specSchema = spec
+			}
+		}
+	}
+	
+	// Get CRD instance values - try detected namespace first, then fallback to default
+	instanceSpec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, detectedNamespace)
+	if err != nil || instanceSpec == nil || len(instanceSpec) == 0 {
+		// Fallback to default namespace if not found in detected namespace
+		if detectedNamespace != "default" {
+			instanceSpec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
+		}
+		if err != nil || instanceSpec == nil {
+			instanceSpec = make(map[string]interface{})
+		}
+	}
+	
+	// Ensure services map exists to avoid nil index errors in template
+	if instanceSpec["services"] == nil {
+		instanceSpec["services"] = make(map[string]interface{})
+	}
+	
+	// Convert schema and instance to JSON for JavaScript library
+	var specSchemaJSON, instanceSpecJSON string
+	if specSchema != nil {
+		if b, err := json.Marshal(specSchema); err == nil {
+			specSchemaJSON = string(b)
+		}
+	}
+	if instanceSpec != nil {
+		if b, err := json.Marshal(instanceSpec); err == nil {
+			instanceSpecJSON = string(b)
+		}
+	}
+	
+	data := map[string]interface{}{
+		"Services":           services,
+		"ParametersSpec":     instanceSpec, // Keep for backward compatibility
+		"CRDSchemaJSON":      specSchemaJSON, // Raw JSON schema for JavaScript library
+		"InstanceSpecJSON":   instanceSpecJSON, // Instance values as JSON
+		// AppName and AppVersion will be added by renderTemplate
+	}
+	
+	if err := h.renderTemplate(w, "parameters", data); err != nil {
+		h.logger.Error(err, "failed to render template")
+		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "template_execution_failed", "Failed to execute template", nil)
+	}
+}
+
 // getServiceNames extracts service names from manifest directory structure
 // It discovers services by looking at Service resources in the manifests
 func (h *Handler) getServiceNames() []string {
