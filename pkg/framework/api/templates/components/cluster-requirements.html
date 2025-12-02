@@ -14,7 +14,8 @@
             </div>
         <div class="card-body">
             <div id="requirements-status">
-                <p class="text-center py-3 text-muted">Loading...</p>
+                {{$loaderData := dict "AppName" .AppName "LoaderText" "Loading cluster requirements..."}}
+                {{template "loader" $loaderData}}
             </div>
         </div>
     </div>

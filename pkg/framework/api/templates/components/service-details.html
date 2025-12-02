@@ -8,7 +8,8 @@
             </div>
             <div class="modal-body">
                 <div id="service-details-loading" style="display: none;">
-                    <p class="text-muted">Loading...</p>
+                    {{$loaderData := dict "AppName" .AppName "LoaderText" "Loading service details..."}}
+                    {{template "loader" $loaderData}}
                 </div>
                 <div id="service-details-info" style="display: none;">
                     <div class="mb-3">

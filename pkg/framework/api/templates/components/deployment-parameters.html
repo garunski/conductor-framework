@@ -52,10 +52,8 @@
                 <!-- Configurable Fields View (default view) -->
                 <div id="configurable-fields-container" class="deployment-params-fields-container">
                     <div id="configurable-fields-content">
-                        <div class="text-muted text-center py-5" role="status" aria-live="polite">
-                            <div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
-                            <span class="small">Loading configurable fields...</span>
-                        </div>
+                        {{$loaderData := dict "AppName" .AppName "LoaderText" "Loading configurable fields..."}}
+                        {{template "loader" $loaderData}}
                     </div>
                 </div>
             </div>

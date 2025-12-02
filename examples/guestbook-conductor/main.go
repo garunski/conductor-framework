@@ -16,7 +16,7 @@ func main() {
 	ctx := context.Background()
 
 	cfg := framework.DefaultConfig()
-	cfg.AppName = "guestbook-conductor"
+	cfg.AppName = "Guestbook"
 	cfg.AppVersion = getVersion()
 	cfg.ManifestFS = manifestFS
 	cfg.ManifestRoot = "manifests"

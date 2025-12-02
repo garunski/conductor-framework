@@ -523,3 +523,22 @@
     font-size: 0.875rem;
 }
 
+/* Logo Loader Animation */
+.logo-loader-container {
+    display: inline-block;
+}
+
+.logo-loader {
+    animation: rotate-slow 3s linear infinite;
+    transform-origin: center center;
+}
+
+@keyframes rotate-slow {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+

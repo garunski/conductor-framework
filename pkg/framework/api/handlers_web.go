@@ -401,6 +401,16 @@ func (h *Handler) ServeStatic(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 	case ".html":
 		w.Header().Set("Content-Type", "text/html")
+	case ".png":
+		w.Header().Set("Content-Type", "image/png")
+	case ".svg":
+		w.Header().Set("Content-Type", "image/svg+xml")
+	case ".jpg", ".jpeg":
+		w.Header().Set("Content-Type", "image/jpeg")
+	case ".gif":
+		w.Header().Set("Content-Type", "image/gif")
+	case ".ico":
+		w.Header().Set("Content-Type", "image/x-icon")
 	default:
 		w.Header().Set("Content-Type", "application/octet-stream")
 	}

@@ -10,19 +10,18 @@
 <div id="sidebar-overlay" class="sidebar-overlay d-md-none"></div>
 
 <aside id="sidebar" class="sidebar d-flex flex-column" style="background: var(--sidebar); border-right: 2px solid var(--text); font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;">
-    <div class="p-3 border-bottom flex-shrink-0" style="border-width: 2px !important; border-color: var(--text) !important;">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h2 class="fs-2 fw-bolder mb-0" style="color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;">
-                    {{.AppName}}
-                </h2>
-                {{if .AppVersion}}
-                <p class="small fw-bold mb-0" style="color: var(--accent3); font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;">
-                    Version: {{.AppVersion}}
-                </p>
-                {{end}}
-            </div>
-            <button id="sidebar-close" class="sidebar-close-btn d-md-none" aria-label="Close sidebar">×</button>
+    <div class="p-4 border-bottom flex-shrink-0 position-relative" style="border-width: 2px !important; border-color: var(--text) !important;">
+        <button id="sidebar-close" class="sidebar-close-btn d-md-none position-absolute" style="top: 0.5rem; right: 0.5rem;" aria-label="Close sidebar">×</button>
+        <div class="d-flex flex-column align-items-center text-center">
+            <img src="/static/images/logo.svg" alt="{{.AppName}} Logo" style="width: 96px; height: 96px; margin-bottom: 1rem;">
+            <h2 class="fs-3 fw-bolder mb-1" style="color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;">
+                {{.AppName}}
+            </h2>
+            {{if .AppVersion}}
+            <p class="small fw-bold mb-0" style="color: var(--accent3); font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;">
+                Version: {{.AppVersion}}
+            </p>
+            {{end}}
         </div>
     </div>
     <nav class="flex-grow-1 overflow-y-auto">
