@@ -1,33 +1,47 @@
 {{define "sidebar"}}
-<aside class="d-flex flex-column h-100" style="background: var(--sidebar); border-right: 4px solid var(--accent);">
-    <div class="p-3 border-bottom flex-shrink-0" style="border-width: 4px !important; border-color: var(--accent) !important;">
-        <h2 class="fs-2 fw-bolder mb-0" style="color: var(--accent)">
-            {{.AppName}}
-        </h2>
-        {{if .AppVersion}}
-        <p class="small fw-bold mb-0 text-muted">
-            v{{.AppVersion}}
-        </p>
-        {{end}}
+<!-- Mobile Hamburger Button -->
+<button id="sidebar-toggle" class="sidebar-toggle-btn d-md-none" aria-label="Toggle sidebar">
+    <span></span>
+    <span></span>
+    <span></span>
+</button>
+
+<!-- Mobile Overlay -->
+<div id="sidebar-overlay" class="sidebar-overlay d-md-none"></div>
+
+<aside id="sidebar" class="sidebar d-flex flex-column" style="background: var(--sidebar); border-right: 2px solid var(--text); font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;">
+    <div class="p-3 border-bottom flex-shrink-0" style="border-width: 2px !important; border-color: var(--text) !important;">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="fs-2 fw-bolder mb-0" style="color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;">
+                    {{.AppName}}
+                </h2>
+                {{if .AppVersion}}
+                <p class="small fw-bold mb-0" style="color: var(--accent3); font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;">
+                    Version: {{.AppVersion}}
+                </p>
+                {{end}}
+            </div>
+            <button id="sidebar-close" class="sidebar-close-btn d-md-none" aria-label="Close sidebar">×</button>
+        </div>
     </div>
     <nav class="flex-grow-1 overflow-y-auto">
         <a href="/" class="nav-link">
-            Services
+            SERVICES
         </a>
         <a href="/parameters" class="nav-link">
-            Parameters
+            PARAMETERS
         </a>
         <a href="/deployments" class="nav-link">
-            Deployments
+            DEPLOYMENTS
         </a>
         <a href="/logs" class="nav-link">
-            Logs
+            LOGS
         </a>
     </nav>
-    <div class="p-2 border-top flex-shrink-0" style="border-color: var(--accent3);">
-        <button id="theme-switcher" class="btn-secondary w-100 d-flex align-items-center justify-content-center gap-1">
-            <span id="theme-icon">🌓</span>
-            <span id="theme-text">System</span>
+    <div class="p-2 border-top flex-shrink-0 mt-auto" style="border-color: var(--text); border-width: 2px;">
+        <button id="theme-switcher" class="btn-secondary w-100 d-flex align-items-center justify-content-center" style="font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;">
+            <span id="theme-text">Theme: System</span>
         </button>
     </div>
 </aside>

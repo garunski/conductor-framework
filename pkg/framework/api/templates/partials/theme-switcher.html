@@ -22,17 +22,15 @@
 
         function updateThemeSwitcher() {
             const theme = themes[currentThemeIndex];
-            const iconEl = document.getElementById('theme-icon');
             const textEl = document.getElementById('theme-text');
             
-            if (iconEl && textEl) {
-                const icons = {
-                    'system': '🌓',
-                    'light': '☀️',
-                    'dark': '🌙'
+            if (textEl) {
+                const themeLabels = {
+                    'system': 'Theme: System',
+                    'light': 'Theme: Light',
+                    'dark': 'Theme: Dark'
                 };
-                iconEl.textContent = icons[theme];
-                textEl.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+                textEl.textContent = themeLabels[theme] || 'Theme: System';
             }
         }
 

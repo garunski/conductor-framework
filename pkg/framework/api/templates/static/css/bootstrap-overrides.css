@@ -1,0 +1,382 @@
+/* Bootstrap Card - Neo-Brutalist Override */
+.card {
+    background: var(--bg);
+    border: 2px solid var(--text);
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.card-header {
+    background: transparent;
+    border: none;
+}
+
+.card-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.card-description {
+    font-size: 0.9375rem;
+    font-weight: 400;
+    color: var(--accent3);
+}
+
+.card-body h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+/* Bootstrap Button - Neo-Brutalist Override */
+.btn {
+    background: var(--text);
+    color: var(--bg);
+    border: 2px solid var(--text);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    transition: none;
+}
+
+.btn:hover {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text);
+    border: 2px solid var(--text);
+}
+
+.btn-secondary:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.btn-success {
+    background: var(--color-success);
+    color: var(--text);
+    border: 2px solid var(--text);
+}
+
+.btn-success:hover {
+    background: var(--text);
+    color: var(--color-success);
+}
+
+.btn-danger {
+    background: var(--color-error);
+    color: var(--bg);
+    border-color: var(--color-error);
+}
+
+.btn-danger:hover {
+    background: var(--bg);
+    color: var(--color-error);
+}
+
+.btn-outline-primary {
+    background: transparent;
+    color: var(--accent);
+    border: 2px solid var(--accent);
+}
+
+.btn-outline-primary:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.btn-outline-info {
+    background: transparent;
+    color: var(--accent);
+    border: 2px solid var(--accent);
+}
+
+.btn-outline-info:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.btn-outline-secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 2px solid var(--accent);
+}
+
+.btn-outline-secondary:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+/* Bootstrap Form Controls - Brutalist Override */
+.form-control, .form-select {
+    border: 2px solid var(--text);
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.form-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23000' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 12px;
+    padding-right: 2.5rem;
+}
+
+[data-bs-theme="dark"] .form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+}
+
+.form-control:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 4px 4px 0 0 var(--accent);
+}
+
+/* Bootstrap Nav Link - Brutalist Override */
+.nav-link {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: var(--text);
+    text-decoration: none;
+    border-bottom: 1px solid var(--accent3);
+    transition: all 0.2s;
+}
+
+.nav-link:hover {
+    background: var(--accent3);
+    color: var(--accent);
+}
+
+.nav-link.active {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 600;
+}
+
+/* Bootstrap Badge - Brutalist Override */
+.badge {
+    border: 2px solid var(--accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge.bg-success {
+    background-color: var(--color-success) !important;
+    color: #000000;
+    border-color: #000000;
+}
+
+.badge.bg-secondary {
+    background-color: var(--accent3) !important;
+    color: var(--bg);
+    border-color: var(--accent3);
+}
+
+.badge.bg-danger {
+    background-color: var(--color-error) !important;
+    color: var(--bg);
+    border-color: var(--color-error);
+}
+
+.badge.bg-primary {
+    background-color: var(--accent) !important;
+    color: var(--bg);
+    border-color: var(--accent);
+}
+
+.badge.bg-info {
+    background-color: var(--accent) !important;
+    color: var(--bg);
+    border-color: var(--accent);
+}
+
+[data-bs-theme="dark"] .badge.bg-secondary {
+    color: var(--text);
+}
+
+/* Bootstrap Modal - Brutalist Override */
+.modal-content.custom-modal {
+    border: 2px solid var(--accent);
+    background: var(--bg);
+    box-shadow: 8px 8px 0 0 var(--accent);
+}
+
+.modal-header {
+    border-bottom: 2px solid var(--accent);
+}
+
+.modal-title {
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.modal-footer {
+    border-top: 2px solid var(--accent);
+}
+
+.btn-close {
+    filter: none;
+    opacity: 1;
+    background: transparent;
+    border: 2px solid var(--accent);
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    position: relative;
+}
+
+.btn-close::before,
+.btn-close::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 60%;
+    background: var(--accent);
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.btn-close::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.btn-close:hover {
+    background: var(--accent);
+    transform: translate(-2px, -2px);
+    box-shadow: 4px 4px 0 0 var(--accent);
+}
+
+.btn-close:hover::before,
+.btn-close:hover::after {
+    background: var(--bg);
+}
+
+[data-bs-theme="dark"] .btn-close {
+    filter: none;
+}
+
+/* Bootstrap Tooltip - Brutalist Override */
+.tooltip-inner {
+    background: var(--accent);
+    color: var(--bg);
+    border: 2px solid var(--accent);
+    box-shadow: 4px 4px 0 0 var(--accent);
+    font-weight: 500;
+}
+
+.tooltip.bs-tooltip-top .tooltip-arrow::before {
+    border-top-color: var(--accent);
+}
+
+.tooltip.bs-tooltip-bottom .tooltip-arrow::before {
+    border-bottom-color: var(--accent);
+}
+
+.tooltip.bs-tooltip-start .tooltip-arrow::before {
+    border-left-color: var(--accent);
+}
+
+.tooltip.bs-tooltip-end .tooltip-arrow::before {
+    border-right-color: var(--accent);
+}
+
+/* Bootstrap Table - Brutalist Override */
+.table {
+    border: 2px solid var(--accent);
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+[data-bs-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.table-hover > tbody > tr:hover > td {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-bs-theme="dark"] .table-hover > tbody > tr:hover > td {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Bootstrap Dropdown - Brutalist Override */
+.custom-dropdown-btn {
+    border: 2px solid var(--accent);
+    background: var(--bg);
+    color: var(--text);
+    transition: all 0.2s;
+}
+
+.custom-dropdown-btn:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.custom-dropdown-btn:focus,
+.custom-dropdown-btn.show {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.custom-dropdown-menu {
+    border: 2px solid var(--text);
+    background: var(--bg);
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.custom-dropdown-item {
+    color: var(--text);
+    border-bottom: 1px solid var(--accent3);
+    transition: all 0.15s;
+}
+
+.custom-dropdown-item:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.custom-dropdown-item.active {
+    background: var(--text);
+    color: var(--bg);
+    font-weight: 700;
+}
+
+/* Bootstrap Collapse - Remove transitions */
+.collapse {
+    transition: none;
+}
+
+.collapsing {
+    transition: none;
+}
+
+/* Status Colors */
+.status-success { border-color: var(--color-success); }
+.status-error { border-color: var(--color-error); }
+.status-info { border-color: var(--color-info); }
+.status-warning { border-color: var(--color-warning); }
+.color-success { color: var(--color-success); }
+.color-error { color: var(--color-error); }
+.color-info { color: var(--color-info); }
+.color-warning { color: var(--color-warning); }
+.border-success { border-color: var(--color-success); }
+.border-error { border-color: var(--color-error); }
+.border-info { border-color: var(--color-info); }
+.border-warning { border-color: var(--color-warning); }
+.border-accent { border-color: var(--accent); }
+

@@ -10,9 +10,7 @@
     {{template "styles" .}}
 </head>
 <body class="d-flex vh-100 overflow-hidden">
-    <div class="d-flex flex-column flex-shrink-0" style="width: 256px;">
-        {{template "sidebar" .}}
-    </div>
+    {{template "sidebar" .}}
     <main class="flex-grow-1 overflow-y-auto">
         <div class="container-fluid p-4">
             {{template "deployment-controls" .}}
@@ -127,7 +125,7 @@
                                 if (isInstalled) {
                                     statusDiv.innerHTML = `
                                         <span class="status-indicator status-installed"></span>
-                                        <span class="badge bg-success">Installed</span>
+                                        <span class="badge bg-secondary">Installed</span>
                                     `;
                                 } else {
                                     statusDiv.innerHTML = `

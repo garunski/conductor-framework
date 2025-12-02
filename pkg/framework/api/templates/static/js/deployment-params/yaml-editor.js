@@ -30,14 +30,37 @@
             
             try {
                 const yamlEditor = ace.edit('yaml-editor');
-                yamlEditor.setTheme('ace/theme/github');
+                
+                // Helper function to get theme based on current theme
+                function getAceTheme() {
+                    const theme = document.documentElement.getAttribute('data-bs-theme');
+                    return theme === 'dark' ? 'ace/theme/clouds_midnight' : 'ace/theme/clouds';
+                }
+                
+                // Use a base theme and override with custom CSS
+                yamlEditor.setTheme(getAceTheme());
                 yamlEditor.session.setMode('ace/mode/yaml');
                 yamlEditor.setOptions({
                     fontSize: 14,
                     showPrintMargin: false,
                     wrap: true,
                     tabSize: 2,
-                    useSoftTabs: true
+                    useSoftTabs: true,
+                    fontFamily: "'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace"
+                });
+                
+                // Listen for theme changes
+                const themeObserver = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'data-bs-theme') {
+                            yamlEditor.setTheme(getAceTheme());
+                        }
+                    });
+                });
+                
+                themeObserver.observe(document.documentElement, {
+                    attributes: true,
+                    attributeFilter: ['data-bs-theme']
                 });
                 
                 if (typeof ace !== 'undefined' && ace.require) {

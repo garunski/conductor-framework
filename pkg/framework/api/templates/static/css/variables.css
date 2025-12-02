@@ -1,0 +1,23 @@
+/* CSS Variables */
+:root {
+    --bg: #ffffff;
+    --sidebar: #ffffff;
+    --text: #1a1a1a;
+    --accent: #000000;
+    --accent2: #333333;
+    --accent3: #666666;
+    --color-success: #22c55e;
+    --color-error: #ff0000;
+    --color-info: #0000ff;
+    --color-warning: #ffaa00;
+}
+
+[data-bs-theme="dark"] {
+    --bg: #1a1a1a;
+    --sidebar: #1a1a1a;
+    --text: #e0e0e0;
+    --accent: #ffffff;
+    --accent2: #cccccc;
+    --accent3: #999999;
+}
+

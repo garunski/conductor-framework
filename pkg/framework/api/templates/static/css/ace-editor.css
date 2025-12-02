@@ -1,0 +1,12 @@
+/* Ace Editor - Minimal brutalist adjustments */
+.ace_editor {
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace !important;
+}
+
+.ace_gutter {
+    padding-top: 12px;
+}
+
+.ace_scroller {
+    padding-top: 12px;
+}
