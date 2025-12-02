@@ -521,8 +521,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     const fieldPath = this.getAttribute('data-field-path');
-                    // TODO: Implement remove array item functionality
-                    console.log('Remove item:', fieldPath);
+                    DeploymentParams.FieldRenderer.removeArrayItem(fieldPath);
                 };
                 State.addEventListener(btn, 'click', clickHandler);
             });
@@ -628,6 +627,94 @@
                     yamlEditor.focus();
                 }
             }, 100);
+        },
+        
+        removeArrayItem: function(fieldPath) {
+            // Parse the field path to extract array path and index
+            // Example: "global.someArray[0]" -> arrayPath: "global.someArray", index: 0
+            const arrayItemMatch = fieldPath.match(/^(.+)\[(\d+)\]$/);
+            if (!arrayItemMatch) {
+                console.error('Invalid array item path:', fieldPath);
+                return;
+            }
+            
+            const arrayPath = arrayItemMatch[1];
+            const index = parseInt(arrayItemMatch[2], 10);
+            
+            const yamlEditor = State.getYamlEditor();
+            if (!yamlEditor) {
+                // If YAML editor is not initialized, switch to it first
+                ViewManager.showYamlEditor();
+                setTimeout(() => {
+                    this.removeArrayItem(fieldPath);
+                }, 100);
+                return;
+            }
+            
+            try {
+                // Get current YAML content
+                const currentYaml = yamlEditor.getValue();
+                let data = {};
+                
+                if (currentYaml && currentYaml.trim()) {
+                    try {
+                        data = YamlUtils.yamlToJson(currentYaml);
+                    } catch (e) {
+                        console.error('Error parsing YAML:', e);
+                        alert('Error parsing YAML: ' + e.message);
+                        return;
+                    }
+                }
+                
+                // Navigate to the array
+                const pathParts = arrayPath.split('.');
+                let current = data;
+                
+                // Navigate to the parent of the array
+                for (let i = 0; i < pathParts.length - 1; i++) {
+                    const part = pathParts[i];
+                    if (!current[part] || typeof current[part] !== 'object') {
+                        console.error('Path not found:', arrayPath);
+                        return;
+                    }
+                    current = current[part];
+                }
+                
+                // Get the array
+                const arrayName = pathParts[pathParts.length - 1];
+                if (!current[arrayName] || !Array.isArray(current[arrayName])) {
+                    console.error('Not an array:', arrayPath);
+                    return;
+                }
+                
+                const array = current[arrayName];
+                
+                // Validate index
+                if (index < 0 || index >= array.length) {
+                    console.error('Invalid array index:', index, 'for array length:', array.length);
+                    return;
+                }
+                
+                // Remove the item at the specified index
+                array.splice(index, 1);
+                
+                // If array is now empty, we can optionally remove it or leave it as empty array
+                // For now, we'll leave it as an empty array
+                
+                // Convert back to YAML
+                const newYaml = YamlUtils.jsonToYaml(data);
+                yamlEditor.setValue(newYaml, -1);
+                
+                // Update instance data in state
+                State.setInstanceData(data);
+                
+                // Re-render the fields view
+                ViewManager.showConfigurableFields();
+                
+            } catch (error) {
+                console.error('Error removing array item:', error);
+                alert('Error removing array item: ' + error.message);
+            }
         }
     };
 })();

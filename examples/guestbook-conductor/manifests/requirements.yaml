@@ -1,5 +1,6 @@
 # Application Requirements for Guestbook Conductor
-# These requirements will be checked alongside the framework's built-in requirements
+# These are the requirements that will be checked for this application.
+# The framework will only check the requirements defined in this file.
 
 requirements:
   # Check Kubernetes version - require 1.24 or higher
