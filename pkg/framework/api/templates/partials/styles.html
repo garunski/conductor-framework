@@ -789,32 +789,37 @@
         outline-offset: 2px;
     }
     
+    /* Neo-brutalist / Terminal UI Styles */
     .config-field-group {
         margin-bottom: 2.5rem;
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
     .config-field-group-header {
-        padding: 0.75rem 1rem;
+        padding: 0.5rem 0.75rem;
         background-color: var(--bg);
-        border: 2px solid var(--accent);
+        border: 2px solid var(--text);
         border-bottom: none;
         font-weight: 700;
-        font-size: 1.125rem;
-        color: var(--accent);
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text);
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
     .config-field-group-body {
-        border: 2px solid var(--accent);
-        padding: 1rem;
+        border: 2px solid var(--text);
+        padding: 0.75rem;
         background-color: var(--bg);
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
     .config-field-item {
         padding: 0.5rem 0;
         margin-bottom: 0.5rem;
         border: none;
-        border-bottom: 1px solid transparent;
-        transition: all 0.2s;
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
     .config-field-item.configured {
@@ -823,164 +828,191 @@
     
     .config-field-item.unconfigured {
         background-color: transparent;
-        opacity: 0.6;
+        opacity: 0.7;
     }
     
     .config-field-item.unconfigured:hover {
         opacity: 1;
         cursor: pointer;
-        padding-left: 0.5rem;
     }
     
+    /* Literal indentation using ch units (monospace) */
     .config-field-item[data-level="1"] {
-        margin-left: 1.5rem;
+        padding-left: 2ch;
     }
     
     .config-field-item[data-level="2"] {
-        margin-left: 3rem;
+        padding-left: 4ch;
     }
     
     .config-field-item[data-level="3"] {
-        margin-left: 4.5rem;
+        padding-left: 6ch;
     }
     
     .config-field-item[data-level="4"] {
-        margin-left: 6rem;
+        padding-left: 8ch;
     }
     
     .config-field-label {
         font-weight: 600;
-        font-size: 0.875rem;
-        margin-bottom: 0.125rem;
+        font-size: 0.8125rem;
+        margin-bottom: 0.25rem;
         display: flex;
-        align-items: center;
+        align-items: baseline;
         gap: 0.5rem;
         flex-wrap: wrap;
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
-    .config-field-label .badge {
-        font-size: 0.65rem;
-        padding: 0.15rem 0.4rem;
-    }
-    
-    .config-field-description-inline {
+    .config-field-type-tag {
         font-size: 0.75rem;
         color: var(--accent3);
         font-weight: 400;
-        font-style: italic;
-        margin-left: 0.5rem;
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    }
+    
+    .config-field-description-inline {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--accent3);
+        font-weight: 400;
+        margin-top: 0.125rem;
+        margin-left: 0;
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
     .config-field-value {
-        font-size: 0.875rem;
+        font-size: 0.8125rem;
         color: var(--text);
-        margin-top: 0.125rem;
+        margin-top: 0.25rem;
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
     .config-field-value.unconfigured {
         color: var(--accent3);
-        font-style: italic;
+    }
+    
+    /* Highlight configured values with brutalist style - inverted colors */
+    .config-field-value-content {
+        background-color: var(--text);
+        color: var(--bg);
+        padding: 0.25rem 0.5rem;
+        border: 2px solid var(--text);
+        display: inline-block;
+        font-weight: 600;
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
     .config-field-default-value {
-        color: var(--accent3);
-        font-style: italic;
+        color: var(--bg);
+        opacity: 0.9;
     }
     
     .config-field-default-hint-inline {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
         color: var(--accent3);
-        font-style: italic;
+        margin-left: 0.5rem;
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
     .config-field-default-hint-inline code {
-        background: rgba(0, 0, 0, 0.05);
-        padding: 0.125rem 0.25rem;
-        border-radius: 2px;
-        font-size: 0.875em;
-        margin-left: 0.25rem;
-    }
-    
-    [data-bs-theme="dark"] .config-field-default-hint-inline code {
-        background: rgba(255, 255, 255, 0.1);
-    }
-    
-    .config-field-edit-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-size: 0.7rem;
-        font-weight: 600;
-        padding: 0.2rem 0.5rem;
-        border: 1px solid var(--accent);
         background: transparent;
-        color: var(--accent);
-        cursor: pointer;
-        transition: all 0.2s;
-        flex-shrink: 0;
+        padding: 0;
+        border: none;
+        font-size: 1em;
+        margin-left: 0.25rem;
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
-    .config-field-edit-btn:hover {
-        background: var(--accent);
-        color: var(--bg);
-    }
-    
-    .config-field-add-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
+    /* Terminal-style buttons: [ + add ], [ - remove ], [ edit ] */
+    .config-field-edit-btn,
+    .config-field-add-btn,
+    .config-field-remove-btn {
+        display: inline-block;
         font-size: 0.75rem;
         font-weight: 600;
-        padding: 0.375rem 0.75rem;
-        border: 2px solid var(--accent);
+        padding: 0.25rem 0.5rem;
+        border: 2px solid var(--text);
         background: var(--bg);
-        color: var(--accent);
+        color: var(--text);
         cursor: pointer;
-        transition: all 0.2s;
-        margin-top: 0;
-        flex-shrink: 0;
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+        margin-left: 0.5rem;
+        transition: none;
     }
     
-    .config-field-add-btn:hover {
-        background: var(--accent);
+    .config-field-edit-btn:hover,
+    .config-field-add-btn:hover,
+    .config-field-remove-btn:hover {
+        background: var(--text);
         color: var(--bg);
-        transform: translate(-1px, -1px);
     }
     
-    .config-field-add-btn:active {
-        transform: translate(0, 0);
+    .config-field-edit-btn:active,
+    .config-field-add-btn:active,
+    .config-field-remove-btn:active {
+        background: var(--text);
+        color: var(--bg);
     }
     
-    .config-field-add-btn {
+    /* Horizontal rule lines for structure */
+    .config-field-rule {
+        border: none;
+        border-top: 1px solid var(--text);
+        margin: 0.5rem 0;
+        width: 100%;
+    }
+    
+    /* Array/Object containers */
+    .config-field-container {
+        border: none;
+        padding: 0.5rem;
+        margin: 0.5rem 0;
+        background-color: var(--bg);
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    }
+    
+    /* Array item containers - each item gets its own border */
+    .config-field-array-item {
+        border: 2px solid var(--text);
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        background-color: var(--bg);
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    }
+    
+    .config-field-container-empty {
+        color: var(--accent3);
+        font-style: normal;
+        padding: 0.25rem;
+    }
+    
+    /* Boolean text-based selector */
+    .config-field-boolean {
         display: inline-flex;
+        gap: 0.5rem;
         align-items: center;
-        gap: 0.375rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        padding: 0.375rem 0.75rem;
-        border: 2px solid var(--accent);
-        background: var(--bg);
-        color: var(--accent);
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    }
+    
+    .config-field-boolean-option {
         cursor: pointer;
-        transition: all 0.2s;
-        margin-top: 0.25rem;
+        padding: 0.125rem 0.375rem;
+        border: 1px solid var(--text);
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     }
     
-    .config-field-add-btn:hover {
-        background: var(--accent);
+    .config-field-boolean-option.selected {
+        background: var(--text);
         color: var(--bg);
-        transform: translate(-1px, -1px);
-    }
-    
-    .config-field-add-btn:active {
-        transform: translate(0, 0);
     }
     
     .config-nested-group {
-        margin-left: 1.5rem;
-        margin-top: 0.75rem;
-        padding-left: 1rem;
-        border-left: 1px solid var(--accent3);
+        margin-top: 0.5rem;
+        padding-left: 2ch;
+        border-left: none;
     }
     
     .required-indicator {

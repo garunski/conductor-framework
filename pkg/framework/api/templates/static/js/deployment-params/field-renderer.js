@@ -124,16 +124,24 @@
             
             const header = document.createElement('div');
             header.className = 'config-field-group-header';
-            header.textContent = title;
+            header.textContent = title.toUpperCase();
             groupDiv.appendChild(header);
             
             const body = document.createElement('div');
             body.className = 'config-field-group-body';
             
-            Object.keys(mergedFields).forEach(key => {
+            const fieldKeys = Object.keys(mergedFields);
+            fieldKeys.forEach((key, index) => {
                 const field = mergedFields[key];
                 const fieldElement = this.renderField(field, 0);
                 body.appendChild(fieldElement);
+                
+                // Add horizontal rule between fields (except last)
+                if (index < fieldKeys.length - 1) {
+                    const rule = document.createElement('hr');
+                    rule.className = 'config-field-rule';
+                    body.appendChild(rule);
+                }
             });
             
             groupDiv.appendChild(body);
@@ -152,7 +160,7 @@
                 fieldDiv.setAttribute('data-level', level.toString());
             }
             
-            // Field label with description inline
+            // Field label with type tag in neo-brutalist style
             const labelDiv = document.createElement('div');
             labelDiv.className = 'config-field-label';
             
@@ -161,10 +169,10 @@
             labelDiv.appendChild(labelSpan);
             
             if (field.type) {
-                const badge = document.createElement('span');
-                badge.className = `badge ${this.getTypeBadgeColor(field.type)}`;
-                badge.textContent = field.type;
-                labelDiv.appendChild(badge);
+                const typeTag = document.createElement('span');
+                typeTag.className = 'config-field-type-tag';
+                typeTag.textContent = `<${field.type}>`;
+                labelDiv.appendChild(typeTag);
             }
             
             if (field.isRequired) {
@@ -174,22 +182,22 @@
                 labelDiv.appendChild(requiredSpan);
             }
             
-            // Add description inline after label elements
+            fieldDiv.appendChild(labelDiv);
+            
+            // Description as terminal comment style (# description)
             if (field.schema && field.schema.description) {
-                const descSpan = document.createElement('span');
-                descSpan.className = 'config-field-description-inline';
-                descSpan.textContent = field.schema.description;
-                labelDiv.appendChild(descSpan);
+                const descDiv = document.createElement('div');
+                descDiv.className = 'config-field-description-inline';
+                descDiv.textContent = '# ' + field.schema.description;
+                fieldDiv.appendChild(descDiv);
             } else if (field.schema && !field.schema.description && field.path) {
                 // Debug: log when schema exists but description is missing
                 console.debug('Field missing description:', field.path, 'schema:', field.schema);
             }
             
-            fieldDiv.appendChild(labelDiv);
-            
-            // Field value - compact layout
+            // Field value - neo-brutalist terminal style
             const hasNestedFields = field.nested && Object.keys(field.nested).length > 0;
-            const showValue = isConfigured && !(field.type === 'object' && hasNestedFields);
+            const showValue = isConfigured && !(field.type === 'object' && hasNestedFields) && field.type !== 'array';
             
             // Check if value equals default
             const isDefaultValue = field.schema && field.schema.default !== undefined && 
@@ -198,19 +206,180 @@
             const valueDiv = document.createElement('div');
             valueDiv.className = `config-field-value ${isConfigured ? '' : 'unconfigured'} ${isDefaultValue ? 'is-default' : ''}`;
             
-            if (showValue) {
+            // Handle arrays with explicit container structure
+            if (field.type === 'array') {
+                const arrayContainer = document.createElement('div');
+                arrayContainer.className = 'config-field-container';
+                arrayContainer.style.border = 'none';
+                
+                if (isConfigured && Array.isArray(field.value) && field.value.length > 0) {
+                    field.value.forEach((item, index) => {
+                        // Create a bordered container for each array item
+                        const itemContainer = document.createElement('div');
+                        itemContainer.className = 'config-field-array-item';
+                        itemContainer.style.border = '2px solid var(--text)';
+                        itemContainer.style.padding = '0.5rem';
+                        itemContainer.style.marginBottom = '0.5rem';
+                        
+                        const itemDiv = document.createElement('div');
+                        
+                        // Check if this array item has nested fields (object type)
+                        const hasNestedFieldsForItem = field.nested && Object.keys(field.nested).length > 0;
+                        
+                        if (hasNestedFieldsForItem && typeof item === 'object' && item !== null) {
+                            // Render nested fields for object array items
+                            const nestedGroup = document.createElement('div');
+                            
+                            Object.keys(field.nested).forEach(nestedKey => {
+                                const nestedField = field.nested[nestedKey];
+                                const nestedValue = item[nestedKey];
+                                const nestedIsConfigured = nestedValue !== undefined && nestedValue !== null;
+                                const nestedDataPath = `${dataPath}[${index}].${nestedKey}`;
+                                
+                                // Create nested field item
+                                const nestedFieldDiv = this.renderField({
+                                    ...nestedField,
+                                    path: nestedDataPath,
+                                    value: nestedValue,
+                                    isConfigured: nestedIsConfigured
+                                }, level + 1);
+                                
+                                nestedGroup.appendChild(nestedFieldDiv);
+                            });
+                            
+                            itemDiv.appendChild(nestedGroup);
+                        } else {
+                            // Simple array item - render as before
+                            const itemLabel = document.createElement('div');
+                            itemLabel.textContent = `item ${index}`;
+                            itemLabel.style.fontWeight = '600';
+                            itemLabel.style.marginBottom = '0.25rem';
+                            itemDiv.appendChild(itemLabel);
+                            
+                            const itemValue = document.createElement('div');
+                            itemValue.style.paddingLeft = '2ch';
+                            if (typeof item === 'object') {
+                                itemValue.textContent = JSON.stringify(item, null, 2);
+                            } else {
+                                itemValue.textContent = String(item);
+                            }
+                            itemDiv.appendChild(itemValue);
+                        }
+                        
+                        itemContainer.appendChild(itemDiv);
+                        
+                        const removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.className = 'config-field-remove-btn';
+                        removeBtn.textContent = '[ - remove ]';
+                        removeBtn.setAttribute('data-field-path', `${dataPath}[${index}]`);
+                        itemContainer.appendChild(removeBtn);
+                        
+                        arrayContainer.appendChild(itemContainer);
+                        
+                        // Add rule line between items
+                        if (index < field.value.length - 1) {
+                            const rule = document.createElement('hr');
+                            rule.className = 'config-field-rule';
+                            arrayContainer.appendChild(rule);
+                        }
+                    });
+                } else {
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.className = 'config-field-container-empty';
+                    emptyDiv.textContent = '[EMPTY]';
+                    arrayContainer.appendChild(emptyDiv);
+                }
+                
+                const addItemBtn = document.createElement('button');
+                addItemBtn.type = 'button';
+                addItemBtn.className = 'config-field-add-btn';
+                addItemBtn.textContent = '[ + add item ]';
+                addItemBtn.setAttribute('data-field-path', dataPath);
+                arrayContainer.appendChild(addItemBtn);
+                
+                valueDiv.appendChild(arrayContainer);
+            }
+            // Handle boolean with text-based selector
+            else if (field.type === 'boolean') {
+                const booleanDiv = document.createElement('div');
+                booleanDiv.className = 'config-field-boolean';
+                
+                const trueOption = document.createElement('span');
+                trueOption.className = 'config-field-boolean-option';
+                trueOption.textContent = 'true';
+                if (isConfigured && field.value === true) {
+                    trueOption.classList.add('selected');
+                }
+                trueOption.setAttribute('data-field-path', dataPath);
+                trueOption.setAttribute('data-value', 'true');
+                booleanDiv.appendChild(trueOption);
+                
+                const separator = document.createTextNode(' | ');
+                booleanDiv.appendChild(separator);
+                
+                const falseOption = document.createElement('span');
+                falseOption.className = 'config-field-boolean-option';
+                falseOption.textContent = 'false';
+                if (isConfigured && field.value === false) {
+                    falseOption.classList.add('selected');
+                } else if (!isConfigured) {
+                    falseOption.classList.add('selected'); // Default to false if not configured
+                }
+                falseOption.setAttribute('data-field-path', dataPath);
+                falseOption.setAttribute('data-value', 'false');
+                booleanDiv.appendChild(falseOption);
+                
+                if (field.schema && field.schema.default !== undefined) {
+                    const defaultHint = document.createElement('span');
+                    defaultHint.className = 'config-field-default-hint-inline';
+                    defaultHint.textContent = `(default: ${field.schema.default})`;
+                    booleanDiv.appendChild(defaultHint);
+                }
+                
+                valueDiv.appendChild(booleanDiv);
+            }
+            // Handle objects with explicit brackets
+            else if (field.type === 'object' && hasNestedFields) {
+                const objectContainer = document.createElement('div');
+                objectContainer.className = 'config-field-container';
+                objectContainer.style.border = 'none';
+                objectContainer.style.backgroundColor = 'transparent';
+                objectContainer.style.color = 'var(--text)';
+                objectContainer.style.marginBottom = '0.5rem';
+                objectContainer.style.padding = '0.5rem';
+                objectContainer.style.fontWeight = '600';
+                
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.className = 'config-field-edit-btn';
+                editBtn.textContent = '[ edit ]';
+                editBtn.setAttribute('data-field-path', dataPath);
+                objectContainer.appendChild(editBtn);
+                
+                valueDiv.appendChild(objectContainer);
+            }
+            // Handle simple values
+            else if (showValue) {
                 const valueWrapper = document.createElement('div');
-                valueWrapper.className = 'd-flex align-items-center gap-2 flex-wrap';
+                valueWrapper.style.display = 'flex';
+                valueWrapper.style.alignItems = 'center';
+                valueWrapper.style.gap = '0.5rem';
+                valueWrapper.style.flexWrap = 'wrap';
                 
                 const formatted = this.formatFieldValue(field.value, field.type);
                 const valueSpan = document.createElement('span');
+                valueSpan.className = 'config-field-value-content';
                 if (typeof formatted === 'string') {
-                    valueSpan.textContent = formatted;
+                    valueSpan.textContent = `[ ${formatted} ]`;
                 } else {
+                    valueSpan.textContent = '[ ';
                     valueSpan.appendChild(formatted);
+                    const closing = document.createTextNode(' ]');
+                    valueSpan.appendChild(closing);
                 }
                 if (isDefaultValue) {
-                    valueSpan.className = 'config-field-default-value';
+                    valueSpan.classList.add('config-field-default-value');
                 }
                 valueWrapper.appendChild(valueSpan);
                 
@@ -219,6 +388,8 @@
                     const defaultHint = document.createElement('span');
                     defaultHint.className = 'config-field-default-hint-inline';
                     defaultHint.textContent = '(default)';
+                    defaultHint.style.color = 'var(--bg)';
+                    defaultHint.style.opacity = '0.7';
                     valueWrapper.appendChild(defaultHint);
                 }
                 
@@ -227,49 +398,30 @@
                 editButton.type = 'button';
                 editButton.className = 'config-field-edit-btn';
                 editButton.setAttribute('data-field-path', dataPath);
-                editButton.textContent = 'Edit';
+                editButton.textContent = '[ edit ]';
                 valueWrapper.appendChild(editButton);
                 
                 valueDiv.appendChild(valueWrapper);
-            } else if (isConfigured && field.type === 'object' && hasNestedFields) {
-                const objectWrapper = document.createElement('div');
-                objectWrapper.className = 'd-flex align-items-center gap-2';
-                
-                const summary = document.createElement('span');
-                summary.className = 'text-muted';
-                summary.textContent = `Object with ${Object.keys(field.nested).length} field(s)`;
-                objectWrapper.appendChild(summary);
-                
-                // Add Edit button for objects
-                const editButton = document.createElement('button');
-                editButton.type = 'button';
-                editButton.className = 'config-field-edit-btn';
-                editButton.setAttribute('data-field-path', dataPath);
-                editButton.textContent = 'Edit';
-                objectWrapper.appendChild(editButton);
-                
-                valueDiv.appendChild(objectWrapper);
             } else {
-                // For unconfigured fields, show default hint inline if available
+                // For unconfigured fields
                 const unconfiguredWrapper = document.createElement('div');
-                unconfiguredWrapper.className = 'd-flex align-items-center gap-2 flex-wrap';
+                unconfiguredWrapper.style.display = 'flex';
+                unconfiguredWrapper.style.alignItems = 'center';
+                unconfiguredWrapper.style.gap = '0.5rem';
+                unconfiguredWrapper.style.flexWrap = 'wrap';
                 
                 const addButton = document.createElement('button');
                 addButton.type = 'button';
                 addButton.className = 'config-field-add-btn';
                 addButton.setAttribute('data-field-path', dataPath);
-                addButton.textContent = 'Add Field';
+                addButton.textContent = '[ + add ]';
                 unconfiguredWrapper.appendChild(addButton);
                 
                 // Show default hint inline for unconfigured fields
                 if (field.schema && field.schema.default !== undefined) {
                     const defaultHint = document.createElement('span');
                     defaultHint.className = 'config-field-default-hint-inline';
-                    const defaultText = document.createTextNode('Default: ');
-                    const defaultCode = document.createElement('code');
-                    defaultCode.textContent = JSON.stringify(field.schema.default);
-                    defaultHint.appendChild(defaultText);
-                    defaultHint.appendChild(defaultCode);
+                    defaultHint.textContent = `(default: ${JSON.stringify(field.schema.default)})`;
                     unconfiguredWrapper.appendChild(defaultHint);
                 }
                 
@@ -278,30 +430,29 @@
             
             fieldDiv.appendChild(valueDiv);
             
-            // Enum values hint
+            // Enum values hint (terminal style)
             if (field.schema && field.schema.enum && Array.isArray(field.schema.enum)) {
                 const enumDiv = document.createElement('div');
-                enumDiv.className = 'config-field-description';
-                const enumText = document.createTextNode('Allowed values: ');
-                enumDiv.appendChild(enumText);
-                field.schema.enum.forEach((v, i) => {
-                    if (i > 0) {
-                        enumDiv.appendChild(document.createTextNode(', '));
-                    }
-                    const code = document.createElement('code');
-                    code.textContent = String(v);
-                    enumDiv.appendChild(code);
-                });
+                enumDiv.className = 'config-field-description-inline';
+                enumDiv.textContent = '# Allowed values: ' + field.schema.enum.map(v => String(v)).join(' | ');
                 fieldDiv.appendChild(enumDiv);
             }
             
-            // Render nested fields
+            // Render nested fields with horizontal rules
             if (field.nested && Object.keys(field.nested).length > 0) {
                 const nestedGroup = document.createElement('div');
                 nestedGroup.className = 'config-nested-group';
-                Object.keys(field.nested).forEach(key => {
+                const nestedKeys = Object.keys(field.nested);
+                nestedKeys.forEach((key, index) => {
                     const nestedField = this.renderField(field.nested[key], level + 1);
                     nestedGroup.appendChild(nestedField);
+                    
+                    // Add horizontal rule between nested fields (except last)
+                    if (index < nestedKeys.length - 1) {
+                        const rule = document.createElement('hr');
+                        rule.className = 'config-field-rule';
+                        nestedGroup.appendChild(rule);
+                    }
                 });
                 fieldDiv.appendChild(nestedGroup);
             }
@@ -311,10 +462,7 @@
         
         formatFieldValue: function(value, type) {
             if (value === null || value === undefined) {
-                const span = document.createElement('span');
-                span.className = 'text-muted';
-                span.textContent = '—';
-                return span;
+                return 'null';
             }
             
             if (type === 'boolean') {
@@ -326,30 +474,17 @@
             }
             
             if (type === 'object' && typeof value === 'object') {
-                const code = document.createElement('code');
-                code.textContent = JSON.stringify(value, null, 2);
-                return code;
+                return JSON.stringify(value, null, 2);
             }
             
             return String(value);
         },
         
-        getTypeBadgeColor: function(type) {
-            const colors = {
-                'string': 'bg-primary',
-                'integer': 'bg-info',
-                'number': 'bg-info',
-                'boolean': 'bg-success',
-                'array': 'bg-warning',
-                'object': 'bg-secondary'
-            };
-            return colors[type] || 'bg-secondary';
-        },
-        
         setupClickHandlers: function() {
             document.querySelectorAll('.config-field-item.unconfigured').forEach(item => {
                 const clickHandler = function(e) {
-                    if (e.target.classList.contains('config-field-add-btn')) {
+                    if (e.target.classList.contains('config-field-add-btn') || 
+                        e.target.classList.contains('config-field-boolean-option')) {
                         e.stopPropagation();
                         return;
                     }
@@ -380,13 +515,37 @@
                 State.addEventListener(btn, 'click', clickHandler);
             });
             
-            // Make configured values clickable to edit
-            document.querySelectorAll('.config-field-item.configured .config-field-value').forEach(valueDiv => {
-                const fieldItem = valueDiv.closest('.config-field-item');
-                if (fieldItem && !valueDiv.querySelector('.config-field-edit-btn')) {
-                    // Only make clickable if there's no edit button (shouldn't happen, but safety check)
-                    return;
-                }
+            // Remove button handlers (for array items)
+            document.querySelectorAll('.config-field-remove-btn').forEach(btn => {
+                const clickHandler = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const fieldPath = this.getAttribute('data-field-path');
+                    // TODO: Implement remove array item functionality
+                    console.log('Remove item:', fieldPath);
+                };
+                State.addEventListener(btn, 'click', clickHandler);
+            });
+            
+            // Boolean option handlers
+            document.querySelectorAll('.config-field-boolean-option').forEach(option => {
+                const clickHandler = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const fieldPath = this.getAttribute('data-field-path');
+                    const value = this.getAttribute('data-value') === 'true';
+                    
+                    // Update visual selection
+                    const booleanDiv = this.parentElement;
+                    booleanDiv.querySelectorAll('.config-field-boolean-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                    });
+                    this.classList.add('selected');
+                    
+                    // Navigate to YAML editor to set the value
+                    DeploymentParams.FieldRenderer.editFieldConfiguration(fieldPath);
+                };
+                State.addEventListener(option, 'click', clickHandler);
             });
         },
         
