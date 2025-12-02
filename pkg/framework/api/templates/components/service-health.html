@@ -18,18 +18,18 @@
                 {{$isInstalled := index $.InstallationStatus .}}
             <div class="col-6 col-md-4 col-lg-3">
                 <div class="service-card p-3 d-flex flex-column position-relative {{if $isInstalled}}service-card-installed{{else}}service-card-not-installed{{end}}" onclick="showServiceDetails('{{.}}', 'default')" style="cursor: pointer;">
-                    <span class="status-indicator {{if $isInstalled}}status-installed{{else}}status-not-installed{{end}}" id="status-indicator-{{.}}"></span>
+                    <span class="status-indicator {{if $isInstalled}}status-installed{{else}}status-not-installed{{end}}" id="status-indicator-{{.}}" data-bs-toggle="tooltip" data-bs-placement="top" title="{{if $isInstalled}}Service is installed and deployed in the cluster{{else}}Service is not installed in the cluster{{end}}"></span>
                     <div class="d-flex align-items-center mb-3">
                         <span class="service-name">{{.}}</span>
                     </div>
-                    <div class="d-flex align-items-center gap-2 mt-auto pt-2 border-top">
+                    <div class="d-flex align-items-center gap-2 mt-auto pt-2">
                         {{if $isInstalled}}
                         <span class="badge bg-success" id="status-badge-{{.}}">Installed</span>
                         {{else}}
                         <span class="badge bg-secondary" id="status-badge-{{.}}">Not Installed</span>
                         {{end}}
                     </div>
-                    <div class="service-card-health small text-muted mt-2 pt-2 border-top" id="health-info-{{.}}" style="display: none;">
+                    <div class="service-card-health small text-muted mt-2 pt-2" id="health-info-{{.}}" style="display: none;">
                     </div>
                     </div>
                 </div>

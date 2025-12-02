@@ -46,17 +46,33 @@
                         statusText = 'Healthy';
                         badgeClass = 'bg-success';
                         indicatorEl.className = 'status-indicator status-installed';
+                        indicatorEl.setAttribute('data-bs-toggle', 'tooltip');
+                        indicatorEl.setAttribute('data-bs-placement', 'top');
+                        indicatorEl.setAttribute('title', 'Service is installed and deployed in the cluster');
                     } else if (statusClass === 'unhealthy') {
                         statusText = 'Unhealthy';
                         badgeClass = 'bg-danger';
                         indicatorEl.className = 'status-indicator';
                         indicatorEl.style.background = 'var(--color-error)';
                         indicatorEl.style.borderColor = 'var(--color-error)';
+                        indicatorEl.setAttribute('data-bs-toggle', 'tooltip');
+                        indicatorEl.setAttribute('data-bs-placement', 'top');
+                        indicatorEl.setAttribute('title', 'Service is installed but unhealthy');
                     } else {
                         statusText = 'Unknown';
                         badgeClass = 'bg-secondary';
                         indicatorEl.className = 'status-indicator status-not-installed';
+                        indicatorEl.setAttribute('data-bs-toggle', 'tooltip');
+                        indicatorEl.setAttribute('data-bs-placement', 'top');
+                        indicatorEl.setAttribute('title', 'Service is not installed in the cluster');
                     }
+                    
+                    // Re-initialize tooltip after update
+                    const existingTooltip = bootstrap.Tooltip.getInstance(indicatorEl);
+                    if (existingTooltip) {
+                        existingTooltip.dispose();
+                    }
+                    new bootstrap.Tooltip(indicatorEl);
                     
                     badgeEl.textContent = statusText;
                     badgeEl.className = `badge ${badgeClass}`;
@@ -131,23 +147,15 @@
                         return;
                     }
 
-                    // Overall status indicator - compact
-                    const overallClass = data.overall === 'pass' ? 'pass' : data.overall === 'fail' ? 'fail' : 'warning';
-                    const overallText = data.overall === 'pass' ? 'All requirements met' : data.overall === 'fail' ? 'Requirements not met' : 'Warnings detected';
-                    
-                    let html = `<div class="requirements-overall ${overallClass} d-inline-flex align-items-center gap-2 p-2 mb-3">
-                        <span>${overallText}</span>
-                    </div>`;
-
-                    html += '<div class="row g-3">';
+                    let html = '<div class="row g-3">';
                     for (const req of data.requirements) {
                         const statusClass = req.status === 'pass' ? 'pass' : req.status === 'fail' ? 'fail' : 'warning';
                         
                         html += `
                             <div class="col-md-6 col-lg-4">
-                                <div class="requirement-badge ${statusClass} p-3">
-                                    <div class="fw-bold small mb-1">${escapeHtml(req.name)}</div>
-                                    <div class="small text-muted">${escapeHtml(req.message || req.description)}</div>
+                                <div class="requirement-badge ${statusClass} p-3 h-100 d-flex flex-column">
+                                    <div class="fw-bold small mb-2">${escapeHtml(req.name)}</div>
+                                    <div class="small text-muted flex-grow-1">${escapeHtml(req.message || req.description)}</div>
                                 </div>
                             </div>
                         `;
@@ -175,6 +183,12 @@
         loadClusterRequirements();
         loadServices();
         setInterval(loadServices, 30000);
+        
+        // Initialize Bootstrap tooltips for status indicators on page load
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('.status-indicator[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
 
         function showServiceDetails(serviceName, namespace) {
             const modal = document.getElementById('service-details-modal');

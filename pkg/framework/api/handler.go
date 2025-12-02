@@ -27,9 +27,11 @@ type Handler struct {
 	store           *store.ManifestStore
 	eventStore      *events.Storage
 	parameterClient *crd.Client
+	manifestFS      embed.FS
+	manifestRoot    string
 }
 
-func NewHandler(store *store.ManifestStore, eventStore *events.Storage, logger logr.Logger, reconcileCh chan string, rec *reconciler.Reconciler, appName, version string, parameterClient *crd.Client, customTemplateFS *embed.FS) (*Handler, error) {
+func NewHandler(store *store.ManifestStore, eventStore *events.Storage, logger logr.Logger, reconcileCh chan string, rec *reconciler.Reconciler, appName, version string, parameterClient *crd.Client, customTemplateFS *embed.FS, manifestFS embed.FS, manifestRoot string) (*Handler, error) {
 	tmpl, err := loadTemplates(customTemplateFS)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load templates: %w", err)
@@ -50,6 +52,8 @@ func NewHandler(store *store.ManifestStore, eventStore *events.Storage, logger l
 		store:           store,
 		eventStore:      eventStore,
 		parameterClient: parameterClient,
+		manifestFS:      manifestFS,
+		manifestRoot:    manifestRoot,
 	}
 
 	return h, nil

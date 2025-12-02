@@ -120,7 +120,7 @@ services:
         },
         
         validate: function() {
-            const statusDiv = document.getElementById('yaml-validation-status');
+            const statusDiv = document.getElementById('parameters-status');
             const yamlEditor = State.getYamlEditor();
             
             if (!statusDiv || !yamlEditor) {
@@ -135,20 +135,12 @@ services:
             
             try {
                 YamlUtils.yamlToJson(yamlContent);
-                const successSpan = document.createElement('span');
-                successSpan.className = 'text-success';
-                successSpan.textContent = '✓ Valid YAML';
-                statusDiv.textContent = '';
-                statusDiv.appendChild(successSpan);
-                statusDiv.className = 'small text-success';
+                statusDiv.textContent = 'VALID';
+                statusDiv.className = 'small status-valid';
                 return true;
             } catch (e) {
-                const errorSpan = document.createElement('span');
-                errorSpan.className = 'text-danger';
-                errorSpan.textContent = `✗ ${e.message}`;
-                statusDiv.textContent = '';
-                statusDiv.appendChild(errorSpan);
-                statusDiv.className = 'small text-danger';
+                statusDiv.textContent = e.message;
+                statusDiv.className = 'small status-error';
                 return false;
             }
         },

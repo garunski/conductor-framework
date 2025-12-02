@@ -15,20 +15,22 @@
         const statusDiv = document.getElementById('status');
         if (!statusDiv) return;
         
-        let borderColor, textColor;
+        let borderColor;
         
         if (type === 'success') {
             borderColor = 'var(--color-success)';
-            textColor = 'var(--text)';
         } else if (type === 'error') {
             borderColor = 'var(--color-error)';
-            textColor = 'var(--color-error)';
         } else {
             borderColor = 'var(--color-info)';
-            textColor = 'var(--color-info)';
         }
         
-        statusDiv.innerHTML = `<div class="status-message ${type}" style="border-color: ${borderColor} !important; color: ${textColor} !important;">${escapeHtml(message)}</div>`;
+        statusDiv.innerHTML = `<div class="status-message ${type}" style="border-color: ${borderColor} !important;">${escapeHtml(message)}</div>`;
+        // Scroll status into view if it's long
+        const statusElement = statusDiv.querySelector('.status-message');
+        if (statusElement) {
+            statusElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
     }
 
     // Set button loading state

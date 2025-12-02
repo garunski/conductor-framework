@@ -33,6 +33,8 @@ type Config struct {
 	CRDVersion         string
 	CRDResource        string
 	CustomTemplateFS   *embed.FS // Optional custom templates
+	ManifestFS         embed.FS  // Embedded manifest filesystem
+	ManifestRoot       string    // Root path for manifests
 }
 
 type Server struct {
@@ -152,6 +154,8 @@ func NewServer(cfg *Config, logger logr.Logger, manifests map[string][]byte) (*S
 		cfg.AppVersion,
 		parameterClient,
 		cfg.CustomTemplateFS,
+		cfg.ManifestFS,
+		cfg.ManifestRoot,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create handler: %w", err)

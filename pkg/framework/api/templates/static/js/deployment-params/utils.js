@@ -21,23 +21,25 @@
             const statusDiv = document.getElementById('parameters-status');
             if (!statusDiv) return;
             
-            let alertClass = 'alert-info';
-            if (type === 'success') {
-                alertClass = 'alert-success';
-            } else if (type === 'error') {
-                alertClass = 'alert-danger';
-            }
-            
-            const alert = document.createElement('div');
-            alert.className = `alert ${alertClass} mb-0`;
-            alert.textContent = message;
-            
             statusDiv.textContent = '';
-            statusDiv.appendChild(alert);
+            statusDiv.className = 'small';
+            statusDiv.removeAttribute('title');
+            
+            if (type === 'success') {
+                statusDiv.textContent = message;
+                statusDiv.className = 'small status-success';
+            } else if (type === 'error') {
+                statusDiv.textContent = message;
+                statusDiv.className = 'small status-error';
+            } else {
+                statusDiv.textContent = message;
+                statusDiv.className = 'small';
+            }
             
             if (type !== 'error') {
                 setTimeout(() => {
                     statusDiv.textContent = '';
+                    statusDiv.className = 'small';
                 }, 5000);
             }
         },

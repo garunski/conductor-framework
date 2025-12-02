@@ -53,12 +53,14 @@ func (h *Handler) Up(w http.ResponseWriter, r *http.Request) {
 	if len(req.Services) > 0 {
 		if err := h.reconciler.DeployManifests(ctx, manifests); err != nil {
 			h.logger.Error(err, "failed to deploy selected services")
-			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "deployment_failed", err.Error(), nil)
+			serviceList := strings.Join(req.Services, ", ")
+			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "deployment_failed", fmt.Sprintf("Deployment failed for service(s): %s. Error: %s", serviceList, err.Error()), nil)
 			return
 		}
 		
+		serviceList := strings.Join(req.Services, ", ")
 		WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{
-			"message": fmt.Sprintf("Successfully deployed %d selected service(s)", len(req.Services)),
+			"message": fmt.Sprintf("Deployment initiated for %d service(s): %s", len(req.Services), serviceList),
 		})
 		return
 	}
@@ -66,11 +68,11 @@ func (h *Handler) Up(w http.ResponseWriter, r *http.Request) {
 	// No services specified, deploy all using updated manifests with current namespace from CRD
 	if err := h.reconciler.DeployManifests(ctx, manifests); err != nil {
 		h.logger.Error(err, "failed to deploy all")
-		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "deployment_failed", err.Error(), nil)
+		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "deployment_failed", fmt.Sprintf("Deployment failed for all services. Error: %s", err.Error()), nil)
 		return
 	}
 
-	WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{"message": "Successfully deployed all manifests"})
+	WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{"message": "Deployment initiated for all services"})
 }
 
 func (h *Handler) Down(w http.ResponseWriter, r *http.Request) {
@@ -102,12 +104,14 @@ func (h *Handler) Down(w http.ResponseWriter, r *http.Request) {
 		
 		if err := h.reconciler.DeleteManifests(ctx, manifests); err != nil {
 			h.logger.Error(err, "failed to delete selected services")
-			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "deletion_failed", err.Error(), nil)
+			serviceList := strings.Join(req.Services, ", ")
+			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "deletion_failed", fmt.Sprintf("Deletion failed for service(s): %s. Error: %s", serviceList, err.Error()), nil)
 			return
 		}
 		
+		serviceList := strings.Join(req.Services, ", ")
 		WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{
-			"message": fmt.Sprintf("Successfully deleted %d selected service(s)", len(req.Services)),
+			"message": fmt.Sprintf("Deletion completed for %d service(s): %s", len(req.Services), serviceList),
 		})
 		return
 	}
@@ -115,11 +119,11 @@ func (h *Handler) Down(w http.ResponseWriter, r *http.Request) {
 	// No services specified, delete all
 	if err := h.reconciler.DeleteAll(ctx); err != nil {
 		h.logger.Error(err, "failed to delete all")
-		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "deletion_failed", err.Error(), nil)
+		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "deletion_failed", fmt.Sprintf("Deletion failed for all services. Error: %s", err.Error()), nil)
 		return
 	}
 
-	WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{"message": "Successfully deleted all managed resources"})
+	WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{"message": "Deletion completed for all services"})
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
@@ -161,12 +165,14 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if len(req.Services) > 0 {
 		if err := h.reconciler.UpdateManifests(ctx, manifests); err != nil {
 			h.logger.Error(err, "failed to update selected services")
-			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "update_failed", err.Error(), nil)
+			serviceList := strings.Join(req.Services, ", ")
+			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "update_failed", fmt.Sprintf("Update failed for service(s): %s. Error: %s", serviceList, err.Error()), nil)
 			return
 		}
 		
+		serviceList := strings.Join(req.Services, ", ")
 		WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{
-			"message": fmt.Sprintf("Successfully updated %d selected service(s)", len(req.Services)),
+			"message": fmt.Sprintf("Update initiated for %d service(s): %s", len(req.Services), serviceList),
 		})
 		return
 	}
@@ -174,11 +180,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	// No services specified, update all using updated manifests with current namespace from CRD
 	if err := h.reconciler.UpdateManifests(ctx, manifests); err != nil {
 		h.logger.Error(err, "failed to update all")
-		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "update_failed", err.Error(), nil)
+		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "update_failed", fmt.Sprintf("Update failed for all services. Error: %s", err.Error()), nil)
 		return
 	}
 
-	WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{"message": "Successfully updated all manifests"})
+	WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{"message": "Update initiated for all services"})
 }
 
 // filterManifestsByServices filters manifests by service names

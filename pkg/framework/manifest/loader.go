@@ -67,6 +67,12 @@ func LoadEmbeddedManifests(files embed.FS, rootPath string, ctx context.Context,
 			return nil
 		}
 
+		// Skip requirements.yaml and requirements.yml files - these are not Kubernetes manifests
+		baseName := filepath.Base(path)
+		if baseName == "requirements.yaml" || baseName == "requirements.yml" {
+			return nil
+		}
+
 		data, err := files.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("failed to read %s: %w", path, err)

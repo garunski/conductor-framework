@@ -1,14 +1,18 @@
 {{define "deployment-parameters"}}
 <div class="card mb-4">
-    <div class="card-header">
-        <div class="d-flex justify-content-between align-items-center">
+    <div class="card-header deployment-params-header">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
             <div>
                 <h2>Deployment Parameters</h2>
                 <p class="card-description mb-0">Configure deployment settings for all services</p>
             </div>
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-sm btn-secondary" id="btn-reset-yaml" aria-label="Reset YAML to original values">RESET</button>
-                <button type="submit" form="parameters-form" class="btn btn-sm" id="btn-save-parameters">SAVE</button>
+            <div class="d-flex flex-column align-items-end gap-2">
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <button type="button" class="btn btn-sm btn-secondary" id="btn-validate-yaml" aria-label="Validate YAML">VALIDATE</button>
+                    <button type="button" class="btn btn-sm btn-secondary" id="btn-reset-yaml" aria-label="Reset YAML to original values">RESET</button>
+                    <button type="submit" form="parameters-form" class="btn btn-sm" id="btn-save-parameters">SAVE</button>
+                </div>
+                <div id="parameters-status" class="small" role="status" aria-live="polite"></div>
             </div>
         </div>
     </div>
@@ -25,7 +29,7 @@
                     <div class="d-flex gap-2 align-items-center">
                         <div class="filter-checkbox-wrapper">
                             <input class="service-checkbox" type="checkbox" id="filter-custom-only" checked aria-label="Show only custom values">
-                            <label class="small mb-0" for="filter-custom-only" style="cursor: pointer;">Custom Only</label>
+                            <label class="small mb-0" for="filter-custom-only" style="cursor: pointer;" data-bs-toggle="tooltip" data-bs-placement="top" title="Show only custom fields (hide default Kubernetes fields like namespace, replicas, imageRegistry, etc.)">Custom Only</label>
                         </div>
                         <div class="view-toggle-selector" role="group" aria-label="View selector">
                             <button type="button" class="view-toggle-option" id="view-toggle-fields" data-view="fields" aria-label="Fields view" aria-pressed="true">Fields</button>
@@ -34,7 +38,6 @@
                         <button type="button" class="btn btn-sm btn-secondary" id="btn-view-deployed" aria-label="View deployed values">
                             View Deployed
                         </button>
-                        <button type="button" class="btn btn-sm btn-secondary" id="btn-validate-yaml" aria-label="Validate YAML">Validate</button>
                     </div>
                 </div>
             </div>
@@ -56,18 +59,6 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Status Bar -->
-            <div class="p-2 border-top bg-light mt-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div id="yaml-validation-status" class="small" role="status" aria-live="polite"></div>
-                        <div id="current-state-indicator" class="small text-muted mt-1"></div>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="parameters-status" class="p-3 border-top mt-3" role="status" aria-live="polite"></div>
         </form>
     </div>
 </div>
@@ -88,6 +79,12 @@
 <script>
     // Initialize deployment parameters page when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Bootstrap tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
         if (typeof window.deploymentParams !== 'undefined' && window.deploymentParams.init) {
             const servicesJSON = {{.Services | json | safeJS}};
             

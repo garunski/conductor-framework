@@ -151,6 +151,8 @@ func Run(ctx context.Context, cfg Config) error {
 		CRDVersion:         cfg.CRDVersion,
 		CRDResource:        cfg.CRDResource,
 		CustomTemplateFS:   cfg.CustomTemplateFS,
+		ManifestFS:         cfg.ManifestFS,
+		ManifestRoot:       cfg.ManifestRoot,
 	}
 
 	// Create server with pre-loaded manifests

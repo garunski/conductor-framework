@@ -12,11 +12,10 @@
 <body class="d-flex vh-100 overflow-hidden">
     {{template "sidebar" .}}
     <main class="flex-grow-1 overflow-y-auto">
-            <div class="container-fluid p-4">
-                {{template "deployment-parameters" .}}
-            </div>
-        </main>
-    </div>
+        <div class="container-fluid p-4">
+            {{template "deployment-parameters" .}}
+        </div>
+    </main>
     {{template "scripts-core" .}}
     {{template "theme-switcher" .}}
     

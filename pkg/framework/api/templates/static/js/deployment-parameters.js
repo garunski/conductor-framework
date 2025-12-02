@@ -67,7 +67,6 @@
             YamlEditor.initialize();
             FieldRenderer.renderAll();
             setupEventHandlers();
-            ViewManager.updateCurrentStateIndicator();
             // Initialize toggle state - fields view is active by default
             const fieldsToggle = document.getElementById('view-toggle-fields');
             const yamlToggle = document.getElementById('view-toggle-yaml');

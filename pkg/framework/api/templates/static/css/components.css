@@ -66,6 +66,9 @@
     background: var(--bg);
     font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     transition: none;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
 }
 
 .requirement-badge.pass { border-color: var(--color-success); }
@@ -115,6 +118,54 @@
     border-color: var(--bg) !important;
 }
 
+.service-card:hover .status-indicator.status-installed {
+    background: var(--color-success) !important;
+    border-color: var(--color-success) !important;
+    box-shadow: 0 0 0 2px var(--text), 0 0 0 4px var(--color-success) !important;
+}
+
+.service-card:hover .status-indicator.status-not-installed {
+    background: var(--color-error) !important;
+    border-color: var(--color-error) !important;
+    box-shadow: 0 0 0 2px var(--text), 0 0 0 4px var(--color-error) !important;
+}
+
+.service-card:hover .border-top {
+    border-color: var(--bg) !important;
+}
+
+/* Dark mode hover - use accent (white) for better visibility */
+[data-bs-theme="dark"] .service-card:hover {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+[data-bs-theme="dark"] .service-card:hover * {
+    color: var(--bg) !important;
+}
+
+[data-bs-theme="dark"] .service-card:hover .badge {
+    background: var(--bg) !important;
+    color: var(--accent) !important;
+    border-color: var(--bg) !important;
+}
+
+[data-bs-theme="dark"] .service-card:hover .status-indicator.status-installed {
+    background: var(--color-success) !important;
+    border-color: var(--color-success) !important;
+    box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--color-success) !important;
+}
+
+[data-bs-theme="dark"] .service-card:hover .status-indicator.status-not-installed {
+    background: var(--color-error) !important;
+    border-color: var(--color-error) !important;
+    box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--color-error) !important;
+}
+
+[data-bs-theme="dark"] .service-card:hover .border-top {
+    border-color: var(--bg) !important;
+}
+
 .service-card-installed {
     border-color: var(--text);
 }
@@ -135,6 +186,66 @@
     border-color: var(--bg) !important;
 }
 
+.service-card-installed:hover .status-indicator.status-installed {
+    background: var(--color-success) !important;
+    border-color: var(--color-success) !important;
+    box-shadow: 0 0 0 2px var(--text), 0 0 0 4px var(--color-success) !important;
+}
+
+.service-card-not-installed:hover .status-indicator.status-not-installed {
+    background: var(--color-error) !important;
+    border-color: var(--color-error) !important;
+    box-shadow: 0 0 0 2px var(--text), 0 0 0 4px var(--color-error) !important;
+}
+
+.service-card-installed:hover .border-top,
+.service-card-not-installed:hover .border-top {
+    border-color: var(--bg) !important;
+}
+
+/* Dark mode hover for installed cards */
+[data-bs-theme="dark"] .service-card-installed:hover {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+}
+
+[data-bs-theme="dark"] .service-card-installed:hover * {
+    color: var(--bg) !important;
+}
+
+[data-bs-theme="dark"] .service-card-installed:hover .badge {
+    background: var(--bg) !important;
+    color: var(--accent) !important;
+    border-color: var(--bg) !important;
+}
+
+[data-bs-theme="dark"] .service-card-installed:hover .status-indicator.status-installed {
+    background: var(--color-success) !important;
+    border-color: var(--color-success) !important;
+    box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--color-success) !important;
+}
+
+[data-bs-theme="dark"] .service-card-not-installed:hover {
+    background: var(--accent);
+    color: var(--bg);
+}
+
+[data-bs-theme="dark"] .service-card-not-installed:hover * {
+    color: var(--bg) !important;
+}
+
+[data-bs-theme="dark"] .service-card-not-installed:hover .status-indicator.status-not-installed {
+    background: var(--color-error) !important;
+    border-color: var(--color-error) !important;
+    box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--color-error) !important;
+}
+
+[data-bs-theme="dark"] .service-card-installed:hover .border-top,
+[data-bs-theme="dark"] .service-card-not-installed:hover .border-top {
+    border-color: var(--bg) !important;
+}
+
 .service-card-not-installed {
     border-color: var(--accent3);
     opacity: 0.9;
@@ -152,19 +263,26 @@
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .status-indicator.status-installed {
-    background: var(--text);
-    border-color: var(--text);
+    background: var(--color-success);
+    border-color: var(--color-success);
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--color-success);
 }
 
 .status-indicator.status-not-installed {
-    background: var(--accent3);
-    border-color: var(--accent3);
+    background: var(--color-error);
+    border-color: var(--color-error);
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--color-error);
 }
 
 .service-selection-grid {
@@ -264,6 +382,42 @@
     100% { background-color: var(--bg); }
 }
 
+.log-error-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.log-error {
+    flex: 1;
+    word-break: break-word;
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 0.875rem;
+}
+
+.btn-copy-error {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    border: 1px solid var(--text);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-copy-error:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.btn-copy-error.copied {
+    background: var(--color-success);
+    border-color: var(--color-success);
+    color: var(--bg);
+}
+
 .log-type {
     border: 2px solid var(--accent);
 }
@@ -290,11 +444,28 @@
 
 .status-message {
     border: 2px solid;
+    padding: 1rem 1.25rem;
+    margin: 0;
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    background: var(--bg);
+    color: var(--text);
+    word-wrap: break-word;
+    display: block;
 }
 
-.status-message.success { border-color: var(--color-success); }
-.status-message.error { border-color: var(--color-error); }
-.status-message.info { border-color: var(--color-info); }
+.status-message.success { 
+    border-color: var(--color-success);
+}
+
+.status-message.error { 
+    border-color: var(--color-error);
+}
+
+.status-message.info { 
+    border-color: var(--color-info);
+}
 
 .current-value-display {
     background: transparent;

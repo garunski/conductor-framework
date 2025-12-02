@@ -1,0 +1,43 @@
+# Application Requirements for Guestbook Conductor
+# These requirements will be checked alongside the framework's built-in requirements
+
+requirements:
+  # Check Kubernetes version - require 1.24 or higher
+  - name: "Kubernetes Version"
+    description: "Kubernetes cluster version must be 1.24 or higher"
+    required: true
+    checkType: "kubernetes-version"
+    checkConfig:
+      minimumVersion: "1.24"
+
+  # Check for minimum number of nodes
+  - name: "Node Availability"
+    description: "At least one node must be available"
+    required: true
+    checkType: "node-count"
+    checkConfig:
+      minimum: 1
+
+  # Check for storage class availability
+  - name: "Storage Class"
+    description: "At least one storage class must be available for persistent volumes"
+    required: false
+    checkType: "storage-class"
+    checkConfig: {}
+
+  # Check CPU resources - require at least 2 cores
+  - name: "CPU Resources"
+    description: "At least 2 CPU cores recommended for guestbook services"
+    required: false
+    checkType: "cpu"
+    checkConfig:
+      minimum: "2"
+
+  # Check Memory resources - require at least 4GB
+  - name: "Memory Resources"
+    description: "At least 4GB RAM recommended for guestbook services"
+    required: false
+    checkType: "memory"
+    checkConfig:
+      minimum: "4Gi"
+

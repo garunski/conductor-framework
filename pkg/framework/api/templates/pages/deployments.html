@@ -97,6 +97,12 @@
             if (card) card.classList.add('service-card-checked');
         });
 
+        // Initialize Bootstrap tooltips for status indicators
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('.status-indicator[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
         // Refresh button functionality
         const refreshBtn = document.getElementById('btn-refresh-status');
         if (refreshBtn) {
@@ -120,19 +126,28 @@
                                 card.classList.add('service-card-not-installed');
                             }
                             
-                            const statusDiv = card.querySelector('.service-card-status');
-                            if (statusDiv) {
-                                if (isInstalled) {
-                                    statusDiv.innerHTML = `
-                                        <span class="status-indicator status-installed"></span>
-                                        <span class="badge bg-secondary">Installed</span>
-                                    `;
-                                } else {
-                                    statusDiv.innerHTML = `
-                                        <span class="status-indicator status-not-installed"></span>
-                                        <span class="badge bg-secondary">Not Installed</span>
-                                    `;
+                            // Update status indicator
+                            const statusIndicator = card.querySelector('.status-indicator');
+                            if (statusIndicator) {
+                                statusIndicator.className = isInstalled ? 'status-indicator status-installed' : 'status-indicator status-not-installed';
+                                statusIndicator.setAttribute('id', `status-indicator-${serviceName}`);
+                                statusIndicator.setAttribute('data-bs-toggle', 'tooltip');
+                                statusIndicator.setAttribute('data-bs-placement', 'top');
+                                statusIndicator.setAttribute('title', isInstalled ? 'Service is installed and deployed in the cluster' : 'Service is not installed in the cluster');
+                                // Re-initialize tooltip
+                                const existingTooltip = bootstrap.Tooltip.getInstance(statusIndicator);
+                                if (existingTooltip) {
+                                    existingTooltip.dispose();
                                 }
+                                new bootstrap.Tooltip(statusIndicator);
+                            }
+                            
+                            // Update badge
+                            const badge = card.querySelector('.badge');
+                            if (badge) {
+                                badge.textContent = isInstalled ? 'Installed' : 'Not Installed';
+                                badge.className = isInstalled ? 'badge bg-success' : 'badge bg-secondary';
+                                badge.setAttribute('id', `status-badge-${serviceName}`);
                             }
                         });
                     })
@@ -174,10 +189,11 @@
                     if (response.ok) {
                         showStatus(data.message, 'success');
                     } else {
-                        showStatus('Error: ' + (data.error || 'Unknown error'), 'error');
+                        const errorMsg = data.error || 'Unknown error';
+                        showStatus(errorMsg, 'error');
                     }
                 } catch (error) {
-                    showStatus('Error: ' + error.message, 'error');
+                    showStatus('Network error: ' + error.message, 'error');
                 } finally {
                     setButtonLoading(button, false);
                 }
@@ -212,10 +228,11 @@
                     if (response.ok) {
                         showStatus(data.message, 'success');
                     } else {
-                        showStatus('Error: ' + (data.error || 'Unknown error'), 'error');
+                        const errorMsg = data.error || 'Unknown error';
+                        showStatus(errorMsg, 'error');
                     }
                 } catch (error) {
-                    showStatus('Error: ' + error.message, 'error');
+                    showStatus('Network error: ' + error.message, 'error');
                 } finally {
                     setButtonLoading(button, false);
                 }
@@ -253,10 +270,11 @@
                             if (response.ok) {
                                 showStatus(data.message, 'info');
                             } else {
-                                showStatus('Error: ' + (data.error || 'Unknown error'), 'error');
+                                const errorMsg = data.error || 'Unknown error';
+                                showStatus(errorMsg, 'error');
                             }
                         } catch (error) {
-                            showStatus('Error: ' + error.message, 'error');
+                            showStatus('Network error: ' + error.message, 'error');
                         } finally {
                             setButtonLoading(button, false);
                         }

@@ -95,7 +95,6 @@
                 State.setInstanceData(data);
                 
                 await this.loadDeployedValues();
-                ViewManager.updateCurrentStateIndicator();
                 FieldRenderer.renderAll();
                 
             } catch (error) {
@@ -219,7 +218,6 @@
                     State.setInstanceData(deployedData);
                     State.setOriginalYaml(deployedYaml);
                     yamlEditor.getSession().getUndoManager().reset();
-                    ViewManager.updateCurrentStateIndicator();
                     YamlEditor.validate();
                     bsModal.hide();
                 }

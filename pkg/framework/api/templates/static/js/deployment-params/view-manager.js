@@ -50,30 +50,6 @@
             DeploymentParams.FieldRenderer.renderAll();
         },
         
-        updateCurrentStateIndicator: function() {
-            const indicator = document.getElementById('current-state-indicator');
-            if (!indicator) return;
-            
-            const instanceData = State.getInstanceData();
-            const hasData = instanceData && (
-                (instanceData.global && Object.keys(instanceData.global).length > 0) ||
-                (instanceData.services && Object.keys(instanceData.services).length > 0)
-            );
-            
-            indicator.textContent = '';
-            if (hasData) {
-                const successSpan = document.createElement('span');
-                successSpan.className = 'text-success';
-                successSpan.textContent = '✓';
-                indicator.appendChild(successSpan);
-                indicator.appendChild(document.createTextNode(' Showing current CRD spec state'));
-            } else {
-                const mutedSpan = document.createElement('span');
-                mutedSpan.className = 'text-muted';
-                mutedSpan.textContent = 'No parameters configured';
-                indicator.appendChild(mutedSpan);
-            }
-        }
     };
 })();
 

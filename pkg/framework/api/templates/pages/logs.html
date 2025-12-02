@@ -17,8 +17,8 @@
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h2>Reconciliation Logs</h2>
-                            <p class="card-description mb-0">View reconciliation events, errors, and status updates</p>
+                            <h2>Logs</h2>
+                            <p class="card-description mb-0">View reconciliation events, errors, and status updates. Displaying up to 100 logs at a time.</p>
                         </div>
                         <button class="btn btn-sm" onclick="loadLogs()">
                             REFRESH
@@ -88,7 +88,7 @@
                 return;
             }
 
-            let html = '<div class="table-responsive"><table class="table table-striped table-hover"><thead><tr><th>Timestamp</th><th>Type</th><th>Resource</th><th>Message</th><th>Error</th></tr></thead><tbody>';
+            let html = '<div class="table-responsive"><table class="table table-striped table-hover"><thead><tr><th>Timestamp</th><th>Resource</th><th>Message</th><th>Error</th></tr></thead><tbody>';
             
             for (const event of events) {
                 const isNew = lastLoadTime && new Date(event.timestamp) > lastLoadTime;
@@ -97,10 +97,15 @@
                 
                 html += `<tr class="${rowClass}">`;
                 html += `<td class="log-timestamp">${formatTimestamp(event.timestamp)}</td>`;
-                html += `<td><span class="log-type">${escapeHtml(event.type)}</span></td>`;
                 html += `<td class="log-resource">${escapeHtml(event.resourceKey || '-')}</td>`;
                 html += `<td class="log-message">${escapeHtml(event.message)}</td>`;
-                html += `<td>${event.error ? '<div class="log-error">' + escapeHtml(event.error) + '</div>' : '-'}</td>`;
+                if (event.error) {
+                    const errorId = 'error-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                    const buttonId = 'copy-btn-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                    html += `<td><div class="log-error-container"><div class="log-error" id="${errorId}">${escapeHtml(event.error)}</div><button class="btn-copy-error btn btn-sm" id="${buttonId}" onclick="copyError('${errorId}', '${buttonId}')" title="Copy error message">COPY</button></div></td>`;
+                } else {
+                    html += `<td>-</td>`;
+                }
                 html += '</tr>';
             }
             
@@ -261,6 +266,51 @@
             });
             
             loadLogs();
+        }
+
+        function copyError(errorId, buttonId) {
+            const errorElement = document.getElementById(errorId);
+            const button = document.getElementById(buttonId);
+            if (!errorElement || !button) return;
+            
+            const errorText = errorElement.textContent;
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(errorText).then(() => {
+                    const originalText = button.textContent;
+                    button.textContent = 'COPIED';
+                    button.classList.add('copied');
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    alert('Failed to copy error message');
+                });
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = errorText;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    const originalText = button.textContent;
+                    button.textContent = 'COPIED';
+                    button.classList.add('copied');
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                    alert('Failed to copy error message');
+                }
+                document.body.removeChild(textArea);
+            }
         }
 
         // Initialize dropdowns, filters and load logs
