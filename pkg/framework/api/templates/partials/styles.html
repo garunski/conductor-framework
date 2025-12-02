@@ -507,6 +507,15 @@
         accent-color: var(--accent);
         flex-shrink: 0;
     }
+    
+    .filter-checkbox-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border: 2px solid var(--accent);
+        background: var(--bg);
+    }
     .service-name {
         font-size: 1rem;
         font-weight: 600;
@@ -810,11 +819,6 @@
     
     .config-field-item.configured {
         background-color: transparent;
-        border-bottom-color: rgba(0, 0, 0, 0.05);
-    }
-    
-    [data-bs-theme="dark"] .config-field-item.configured {
-        border-bottom-color: rgba(255, 255, 255, 0.05);
     }
     
     .config-field-item.unconfigured {

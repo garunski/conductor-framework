@@ -45,9 +45,9 @@
         },
         
         applyChanges: async function() {
-            const applyBtn = document.getElementById('btn-apply-yaml');
-            if (applyBtn) {
-                Utils.setButtonLoading(applyBtn, true);
+            const saveBtn = document.getElementById('btn-save-parameters');
+            if (saveBtn) {
+                Utils.setButtonLoading(saveBtn, true);
             }
             
             try {
@@ -101,8 +101,8 @@
             } catch (error) {
                 Utils.showStatus(`Error: ${error.message}`, 'error');
             } finally {
-                if (applyBtn) {
-                    Utils.setButtonLoading(applyBtn, false);
+                if (saveBtn) {
+                    Utils.setButtonLoading(saveBtn, false);
                 }
             }
         },

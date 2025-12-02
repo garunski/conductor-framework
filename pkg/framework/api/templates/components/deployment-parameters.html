@@ -7,8 +7,8 @@
                 <p class="card-description mb-0">Configure deployment settings for all services</p>
             </div>
             <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-secondary" id="btn-reset-yaml" aria-label="Reset YAML to original values">RESET</button>
                 <button type="submit" form="parameters-form" class="btn btn-sm" id="btn-save-parameters">SAVE</button>
-                <button type="button" class="btn btn-sm btn-secondary" id="btn-reset-parameters">RESET</button>
             </div>
         </div>
     </div>
@@ -23,9 +23,9 @@
                         <small class="text-muted">Configure all available fields</small>
                     </div>
                     <div class="d-flex gap-2 align-items-center">
-                        <div class="view-toggle-selector" role="group" aria-label="Filter selector">
-                            <button type="button" class="view-toggle-option" id="filter-k8s" aria-label="Show Kubernetes parameters" aria-pressed="true">K8S Values</button>
-                            <button type="button" class="view-toggle-option" id="filter-custom" aria-label="Show custom values only" aria-pressed="false">Custom Values</button>
+                        <div class="filter-checkbox-wrapper">
+                            <input class="service-checkbox" type="checkbox" id="filter-custom-only" checked aria-label="Show only custom values">
+                            <label class="small mb-0" for="filter-custom-only" style="cursor: pointer;">Custom Only</label>
                         </div>
                         <div class="view-toggle-selector" role="group" aria-label="View selector">
                             <button type="button" class="view-toggle-option" id="view-toggle-fields" data-view="fields" aria-label="Fields view" aria-pressed="true">Fields</button>
@@ -63,10 +63,6 @@
                     <div>
                         <div id="yaml-validation-status" class="small" role="status" aria-live="polite"></div>
                         <div id="current-state-indicator" class="small text-muted mt-1"></div>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-sm btn-secondary" id="btn-reset-yaml" aria-label="Reset YAML to original values">Reset</button>
-                        <button type="submit" form="parameters-form" class="btn btn-sm" id="btn-apply-yaml" aria-label="Apply changes">Apply</button>
                     </div>
                 </div>
             </div>
