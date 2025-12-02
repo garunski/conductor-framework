@@ -136,6 +136,12 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--text) !important;
+    display: inline-flex;
+    align-items: center;
+}
+
+.navbar-brand svg {
+    flex-shrink: 0;
 }
 
 .navbar-dark .navbar-nav .nav-link {
