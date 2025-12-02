@@ -343,3 +343,39 @@ p {
 .container {
     font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
 }
+
+/* GitHub Star Button - Neo-Brutalist Style */
+.github-star-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.375rem;
+    line-height: 1.5 !important;
+}
+
+.github-star-btn svg {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+.github-star-count {
+    display: none;
+    padding: 0.125rem 0.375rem;
+    border: 2px solid var(--text);
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-weight: 700;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.github-star-btn:hover .github-star-count {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+}
