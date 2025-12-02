@@ -63,7 +63,7 @@ badger/
 DISCARD
 KEYREGISTRY
 LOCK
-MANIFEST
+**/MANIFEST$
 
 # Kubernetes config files (may contain secrets)
 kubeconfig

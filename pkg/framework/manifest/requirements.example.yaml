@@ -1,0 +1,45 @@
+# Example Application Requirements File
+# Place this file as requirements.yaml or requirements.yml in your manifests folder
+# The conductor framework will automatically load and check these requirements
+
+requirements:
+  # Check Kubernetes version
+  - name: "Kubernetes Version"
+    description: "Kubernetes cluster version must be 1.28 or higher"
+    required: true
+    checkType: "kubernetes-version"
+    checkConfig:
+      minimumVersion: "1.28"
+
+  # Check minimum number of nodes
+  - name: "High Availability Nodes"
+    description: "At least 3 nodes required for HA deployment"
+    required: false
+    checkType: "node-count"
+    checkConfig:
+      minimum: 3
+
+  # Check for specific storage class
+  - name: "Fast Storage Class"
+    description: "Fast SSD storage class required for database"
+    required: true
+    checkType: "storage-class"
+    checkConfig:
+      name: "fast-ssd"
+
+  # Check CPU resources
+  - name: "CPU Resources"
+    description: "At least 8 CPU cores required"
+    required: true
+    checkType: "cpu"
+    checkConfig:
+      minimum: "8"
+
+  # Check Memory resources
+  - name: "Memory Resources"
+    description: "At least 16GB RAM required"
+    required: true
+    checkType: "memory"
+    checkConfig:
+      minimum: "16Gi"
+
