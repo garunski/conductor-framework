@@ -51,6 +51,13 @@
             State.setInstanceData(instanceData);
         }
         
+        // Initialize filter state BEFORE rendering - Custom Only is checked by default
+        State.setFilterNonDefaultK8s(true);
+        const filterCheckbox = document.getElementById('filter-custom-only');
+        if (filterCheckbox) {
+            filterCheckbox.checked = true;
+        }
+        
         // Initialize all components
         Promise.all([
             ApiClient.fetchSchema(),
@@ -70,12 +77,6 @@
             if (yamlToggle) {
                 yamlToggle.setAttribute('aria-pressed', 'false');
             }
-            // Initialize filter checkbox state - Custom Only is checked by default (show only custom fields)
-            const filterCheckbox = document.getElementById('filter-custom-only');
-            if (filterCheckbox) {
-                filterCheckbox.checked = true;
-            }
-            State.setFilterNonDefaultK8s(true);
         }).catch(error => {
             // Still try to initialize even if schema/deployed values fail
             YamlEditor.initialize();
@@ -89,12 +90,6 @@
             if (yamlToggle) {
                 yamlToggle.setAttribute('aria-pressed', 'false');
             }
-            // Initialize filter checkbox state - Custom Only is checked by default (show only custom fields)
-            const filterCheckbox = document.getElementById('filter-custom-only');
-            if (filterCheckbox) {
-                filterCheckbox.checked = true;
-            }
-            State.setFilterNonDefaultK8s(true);
         });
     }
     

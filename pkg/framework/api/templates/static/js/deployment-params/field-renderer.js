@@ -152,7 +152,7 @@
                 fieldDiv.setAttribute('data-level', level.toString());
             }
             
-            // Field label
+            // Field label with description inline
             const labelDiv = document.createElement('div');
             labelDiv.className = 'config-field-label';
             
@@ -174,65 +174,109 @@
                 labelDiv.appendChild(requiredSpan);
             }
             
-            fieldDiv.appendChild(labelDiv);
-            
-            // Field description (show right after label for better visibility)
+            // Add description inline after label elements
             if (field.schema && field.schema.description) {
-                const descDiv = document.createElement('div');
-                descDiv.className = 'config-field-description';
-                descDiv.textContent = field.schema.description;
-                fieldDiv.appendChild(descDiv);
+                const descSpan = document.createElement('span');
+                descSpan.className = 'config-field-description-inline';
+                descSpan.textContent = field.schema.description;
+                labelDiv.appendChild(descSpan);
             } else if (field.schema && !field.schema.description && field.path) {
                 // Debug: log when schema exists but description is missing
                 console.debug('Field missing description:', field.path, 'schema:', field.schema);
             }
             
-            // Field value
+            fieldDiv.appendChild(labelDiv);
+            
+            // Field value - compact layout
             const hasNestedFields = field.nested && Object.keys(field.nested).length > 0;
             const showValue = isConfigured && !(field.type === 'object' && hasNestedFields);
             
+            // Check if value equals default
+            const isDefaultValue = field.schema && field.schema.default !== undefined && 
+                                   JSON.stringify(field.value) === JSON.stringify(field.schema.default);
+            
             const valueDiv = document.createElement('div');
-            valueDiv.className = `config-field-value ${isConfigured ? '' : 'unconfigured'}`;
+            valueDiv.className = `config-field-value ${isConfigured ? '' : 'unconfigured'} ${isDefaultValue ? 'is-default' : ''}`;
             
             if (showValue) {
+                const valueWrapper = document.createElement('div');
+                valueWrapper.className = 'd-flex align-items-center gap-2 flex-wrap';
+                
                 const formatted = this.formatFieldValue(field.value, field.type);
+                const valueSpan = document.createElement('span');
                 if (typeof formatted === 'string') {
-                    valueDiv.textContent = formatted;
+                    valueSpan.textContent = formatted;
                 } else {
-                    valueDiv.appendChild(formatted);
+                    valueSpan.appendChild(formatted);
                 }
+                if (isDefaultValue) {
+                    valueSpan.className = 'config-field-default-value';
+                }
+                valueWrapper.appendChild(valueSpan);
+                
+                // Add default hint inline if value equals default
+                if (isDefaultValue && field.schema && field.schema.default !== undefined) {
+                    const defaultHint = document.createElement('span');
+                    defaultHint.className = 'config-field-default-hint-inline';
+                    defaultHint.textContent = '(default)';
+                    valueWrapper.appendChild(defaultHint);
+                }
+                
+                // Add Edit button for configured values
+                const editButton = document.createElement('button');
+                editButton.type = 'button';
+                editButton.className = 'config-field-edit-btn';
+                editButton.setAttribute('data-field-path', dataPath);
+                editButton.textContent = 'Edit';
+                valueWrapper.appendChild(editButton);
+                
+                valueDiv.appendChild(valueWrapper);
             } else if (isConfigured && field.type === 'object' && hasNestedFields) {
+                const objectWrapper = document.createElement('div');
+                objectWrapper.className = 'd-flex align-items-center gap-2';
+                
                 const summary = document.createElement('span');
                 summary.className = 'text-muted';
                 summary.textContent = `Object with ${Object.keys(field.nested).length} field(s)`;
-                valueDiv.appendChild(summary);
-            } else {
-                const notConfigured = document.createElement('span');
-                notConfigured.className = 'text-muted';
-                notConfigured.textContent = 'Not configured';
-                valueDiv.appendChild(notConfigured);
+                objectWrapper.appendChild(summary);
                 
-                const addLink = document.createElement('a');
-                addLink.href = '#';
-                addLink.className = 'config-field-add-btn';
-                addLink.setAttribute('data-field-path', dataPath);
-                addLink.textContent = '[+ Add]';
-                valueDiv.appendChild(addLink);
+                // Add Edit button for objects
+                const editButton = document.createElement('button');
+                editButton.type = 'button';
+                editButton.className = 'config-field-edit-btn';
+                editButton.setAttribute('data-field-path', dataPath);
+                editButton.textContent = 'Edit';
+                objectWrapper.appendChild(editButton);
+                
+                valueDiv.appendChild(objectWrapper);
+            } else {
+                // For unconfigured fields, show default hint inline if available
+                const unconfiguredWrapper = document.createElement('div');
+                unconfiguredWrapper.className = 'd-flex align-items-center gap-2 flex-wrap';
+                
+                const addButton = document.createElement('button');
+                addButton.type = 'button';
+                addButton.className = 'config-field-add-btn';
+                addButton.setAttribute('data-field-path', dataPath);
+                addButton.textContent = 'Add Field';
+                unconfiguredWrapper.appendChild(addButton);
+                
+                // Show default hint inline for unconfigured fields
+                if (field.schema && field.schema.default !== undefined) {
+                    const defaultHint = document.createElement('span');
+                    defaultHint.className = 'config-field-default-hint-inline';
+                    const defaultText = document.createTextNode('Default: ');
+                    const defaultCode = document.createElement('code');
+                    defaultCode.textContent = JSON.stringify(field.schema.default);
+                    defaultHint.appendChild(defaultText);
+                    defaultHint.appendChild(defaultCode);
+                    unconfiguredWrapper.appendChild(defaultHint);
+                }
+                
+                valueDiv.appendChild(unconfiguredWrapper);
             }
             
             fieldDiv.appendChild(valueDiv);
-            
-            // Default value hint
-            if (!isConfigured && field.schema && field.schema.default !== undefined) {
-                const defaultDiv = document.createElement('div');
-                defaultDiv.className = 'config-field-description text-info';
-                const defaultText = document.createTextNode('Default: ');
-                const defaultCode = document.createElement('code');
-                defaultCode.textContent = JSON.stringify(field.schema.default);
-                defaultDiv.appendChild(defaultText);
-                defaultDiv.appendChild(defaultCode);
-                fieldDiv.appendChild(defaultDiv);
-            }
             
             // Enum values hint
             if (field.schema && field.schema.enum && Array.isArray(field.schema.enum)) {
@@ -324,6 +368,26 @@
                 };
                 State.addEventListener(btn, 'click', clickHandler);
             });
+            
+            // Edit button handlers
+            document.querySelectorAll('.config-field-edit-btn').forEach(btn => {
+                const clickHandler = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const fieldPath = this.getAttribute('data-field-path');
+                    DeploymentParams.FieldRenderer.editFieldConfiguration(fieldPath);
+                };
+                State.addEventListener(btn, 'click', clickHandler);
+            });
+            
+            // Make configured values clickable to edit
+            document.querySelectorAll('.config-field-item.configured .config-field-value').forEach(valueDiv => {
+                const fieldItem = valueDiv.closest('.config-field-item');
+                if (fieldItem && !valueDiv.querySelector('.config-field-edit-btn')) {
+                    // Only make clickable if there's no edit button (shouldn't happen, but safety check)
+                    return;
+                }
+            });
         },
         
         addFieldConfiguration: function(fieldPath) {
@@ -391,6 +455,18 @@
                     
                 } catch (error) {
                     alert('Error adding field: ' + error.message);
+                }
+            }, 100);
+        },
+        
+        editFieldConfiguration: function(fieldPath) {
+            ViewManager.showYamlEditor();
+            
+            setTimeout(() => {
+                YamlEditor.scrollToField(fieldPath);
+                const yamlEditor = State.getYamlEditor();
+                if (yamlEditor) {
+                    yamlEditor.focus();
                 }
             }, 100);
         }

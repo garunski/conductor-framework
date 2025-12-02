@@ -15,7 +15,7 @@
         serviceSchemaTemplate: null,
         globalSchema: null,
         eventListeners: [],
-        filterNonDefaultK8s: false
+        filterNonDefaultK8s: true
     };
     
     DeploymentParams.State = {
