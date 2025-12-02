@@ -205,10 +205,10 @@ spec:
                           description: Enable debug mode for the application
                         maxmemory:
                           type: string
-                          description: Maximum memory setting (e.g., for Redis: "256mb")
-                        maxmemory-policy:
+                          description: "Maximum memory setting (e.g., for Redis: \"256mb\")"
+                        "maxmemory-policy":
                           type: string
-                          description: Memory eviction policy (e.g., for Redis: "allkeys-lru")
+                          description: "Memory eviction policy (e.g., for Redis: \"allkeys-lru\")"
                     ingress:
                       type: object
                       description: Ingress configuration for external access
