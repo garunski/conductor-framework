@@ -1,0 +1,338 @@
+<extends src="layouts/base.html" locals='{"title": "Contributing - Conductor Framework"}'>
+<block name="content">
+    <div class="container mt-4">
+        <section>
+            <h1>Contributing to Conductor Framework</h1>
+            <p class="lead">Thank you for your interest in contributing to Conductor Framework! We welcome contributions of all kinds.</p>
+        </section>
+
+        <section>
+            <h2>Introduction</h2>
+            <p>Conductor Framework is an open-source project, and we appreciate contributions from the community. Whether you're fixing bugs, adding features, improving documentation, or creating examples, your contributions help make the framework better for everyone.</p>
+            
+            <h3>Contribution Types</h3>
+            <ul>
+                <li><strong>Bug Fixes</strong>: Fix issues and improve stability</li>
+                <li><strong>New Features</strong>: Add functionality that benefits users</li>
+                <li><strong>Documentation</strong>: Improve guides, API docs, and examples</li>
+                <li><strong>Examples</strong>: Create new use cases and demonstrations</li>
+                <li><strong>Tests</strong>: Increase test coverage and reliability</li>
+                <li><strong>Performance</strong>: Optimize code and improve efficiency</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Development Setup</h2>
+
+            <h3>Prerequisites</h3>
+            <ul>
+                <li><strong>Go 1.25.4+</strong> (or latest stable version)</li>
+                <li><strong>Docker</strong> (or compatible container runtime) for testing</li>
+                <li><strong>Kubernetes cluster</strong> access (local or remote)</li>
+                <li><strong>kubectl</strong> configured to access your cluster</li>
+                <li><strong>Git</strong> for version control</li>
+            </ul>
+
+            <h3>Getting Started</h3>
+            <ol>
+                <li><strong>Fork the repository</strong> on GitHub</li>
+                <li><strong>Clone your fork</strong>:
+                    <div class="code-block">
+                        <pre><code>git clone https://github.com/YOUR_USERNAME/conductor-framework.git
+cd conductor-framework</code></pre>
+                    </div>
+                </li>
+                <li><strong>Add upstream remote</strong>:
+                    <div class="code-block">
+                        <pre><code>git remote add upstream https://github.com/garunski/conductor-framework.git</code></pre>
+                    </div>
+                </li>
+                <li><strong>Build the project</strong>:
+                    <div class="code-block">
+                        <pre><code>go build ./...</code></pre>
+                    </div>
+                </li>
+                <li><strong>Run tests</strong>:
+                    <div class="code-block">
+                        <pre><code>go test ./...</code></pre>
+                    </div>
+                </li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>Code Standards</h2>
+
+            <h3>Go Coding Conventions</h3>
+            <ul>
+                <li>Follow standard Go formatting with <code>gofmt</code></li>
+                <li>Use <code>goimports</code> for import organization</li>
+                <li>Follow <a href="https://go.dev/doc/effective_go">Effective Go</a> guidelines</li>
+                <li>Use meaningful variable and function names</li>
+                <li>Keep functions focused and small</li>
+            </ul>
+
+            <h3>Code Formatting</h3>
+            <p>Format your code before committing:</p>
+            <div class="code-block">
+                <pre><code>go fmt ./...
+goimports -w .</code></pre>
+            </div>
+
+            <h3>Linting</h3>
+            <p>Ensure your code passes linting checks. Consider using <code>golangci-lint</code>:</p>
+            <div class="code-block">
+                <pre><code>golangci-lint run</code></pre>
+            </div>
+
+            <h3>Documentation Comments</h3>
+            <p>All exported functions, types, and packages should have godoc comments:</p>
+            <div class="code-block">
+                <pre><code>// NewClient creates a new client instance with the given configuration.
+// It returns an error if the configuration is invalid.
+func NewClient(cfg Config) (*Client, error) {
+    // ...
+}</code></pre>
+            </div>
+
+            <h3>Test Coverage</h3>
+            <ul>
+                <li>Write tests for new code</li>
+                <li>Maintain or improve test coverage</li>
+                <li>Test files should be named <code>*_test.go</code></li>
+                <li>Use table-driven tests where appropriate</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Project Structure</h2>
+            <p>Understanding the project structure helps you know where to make changes:</p>
+            <div class="code-block">
+                <pre><code>pkg/framework/
+├── api/              # REST API handlers and routes
+├── reconciler/       # Kubernetes resource reconciliation
+├── manifest/         # Manifest loading and templating
+├── events/           # Event storage and querying
+├── store/            # Manifest storage and indexing
+├── crd/              # CRD client for parameters
+├── database/         # BadgerDB integration
+├── server/           # HTTP server and lifecycle
+├── index/            # Manifest indexing
+└── framework.go      # Main entry point</code></pre>
+            </div>
+
+            <h3>Where to Add New Features</h3>
+            <ul>
+                <li><strong>API endpoints</strong>: Add to <code>pkg/framework/api/</code></li>
+                <li><strong>Reconciliation logic</strong>: Modify <code>pkg/framework/reconciler/</code></li>
+                <li><strong>Template functions</strong>: Extend <code>pkg/framework/manifest/</code></li>
+                <li><strong>Event handling</strong>: Update <code>pkg/framework/events/</code></li>
+                <li><strong>Storage</strong>: Enhance <code>pkg/framework/store/</code> or <code>database/</code></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Contribution Workflow</h2>
+
+            <ol>
+                <li><strong>Create an issue</strong> or discuss your feature in an existing issue</li>
+                <li><strong>Fork the repository</strong> if you haven't already</li>
+                <li><strong>Create a feature branch</strong>:
+                    <div class="code-block">
+                        <pre><code>git checkout -b feature/amazing-feature</code></pre>
+                    </div>
+                </li>
+                <li><strong>Make your changes</strong> with tests</li>
+                <li><strong>Write or update tests</strong> to cover your changes</li>
+                <li><strong>Update documentation</strong> if needed</li>
+                <li><strong>Commit your changes</strong> with clear messages:
+                    <div class="code-block">
+                        <pre><code>git commit -m "Add feature: description of changes"</code></pre>
+                    </div>
+                </li>
+                <li><strong>Push to your fork</strong>:
+                    <div class="code-block">
+                        <pre><code>git push origin feature/amazing-feature</code></pre>
+                    </div>
+                </li>
+                <li><strong>Submit a pull request</strong> on GitHub</li>
+            </ol>
+
+            <h3>Keeping Your Fork Updated</h3>
+            <div class="code-block">
+                <pre><code>git fetch upstream
+git checkout main
+git merge upstream/main
+git push origin main</code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>Pull Request Guidelines</h2>
+
+            <h3>PR Requirements</h3>
+            <ul>
+                <li>Clear description of changes</li>
+                <li>Reference related issues</li>
+                <li>All tests passing</li>
+                <li>Code formatted and linted</li>
+                <li>Documentation updated if needed</li>
+            </ul>
+
+            <h3>Commit Message Format</h3>
+            <p>We prefer conventional commits format:</p>
+            <div class="code-block">
+                <pre><code>type(scope): subject
+
+body (optional)
+
+footer (optional)</code></pre>
+            </div>
+            <p><strong>Types:</strong> <code>feat</code>, <code>fix</code>, <code>docs</code>, <code>test</code>, <code>refactor</code>, <code>chore</code></p>
+            <p><strong>Example:</strong></p>
+            <div class="code-block">
+                <pre><code>feat(api): add endpoint for service health checks
+
+Adds GET /api/services/health endpoint that returns
+health status for all managed services.
+
+Closes #123</code></pre>
+            </div>
+
+            <h3>Review Process</h3>
+            <ul>
+                <li>All PRs require at least one review</li>
+                <li>Address review comments promptly</li>
+                <li>Keep PRs focused and reasonably sized</li>
+                <li>Be open to feedback and suggestions</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Areas for Contribution</h2>
+
+            <h3>Bug Fixes</h3>
+            <p>Check the <a href="https://github.com/garunski/conductor-framework/issues">issues list</a> for bugs to fix. Look for labels like <code>bug</code> or <code>good first issue</code>.</p>
+
+            <h3>New Features</h3>
+            <p>Discuss new features in an issue before implementing to ensure alignment with project goals.</p>
+
+            <h3>Documentation</h3>
+            <ul>
+                <li>Improve user guides and tutorials</li>
+                <li>Add code examples and use cases</li>
+                <li>Fix typos and clarify explanations</li>
+                <li>Update API documentation</li>
+            </ul>
+
+            <h3>Examples</h3>
+            <p>Create new examples demonstrating different use cases:</p>
+            <ul>
+                <li>Different application architectures</li>
+                <li>Custom template functions</li>
+                <li>Integration patterns</li>
+                <li>Deployment scenarios</li>
+            </ul>
+
+            <h3>Test Coverage</h3>
+            <p>Help improve test coverage by:</p>
+            <ul>
+                <li>Adding unit tests for uncovered code</li>
+                <li>Creating integration tests</li>
+                <li>Adding edge case tests</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Testing Requirements</h2>
+
+            <h3>Unit Tests</h3>
+            <p>Write unit tests for new functions and methods:</p>
+            <div class="code-block">
+                <pre><code>func TestNewClient(t *testing.T) {
+    tests := []struct {
+        name    string
+        cfg     Config
+        wantErr bool
+    }{
+        // test cases
+    }
+    // ...
+}</code></pre>
+            </div>
+
+            <h3>Integration Tests</h3>
+            <p>For API changes, add integration tests that verify end-to-end behavior.</p>
+
+            <h3>Running Tests</h3>
+            <div class="code-block">
+                <pre><code># Run all tests
+go test ./...
+
+# Run tests with coverage
+go test -cover ./...
+
+# Run specific package tests
+go test ./pkg/framework/api/...</code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>Documentation</h2>
+
+            <h3>Code Comments</h3>
+            <p>Use godoc format for all exported symbols:</p>
+            <div class="code-block">
+                <pre><code>// Config holds framework configuration.
+// All fields are optional and have sensible defaults.
+type Config struct {
+    // AppName is the name of the application.
+    AppName string
+}</code></pre>
+            </div>
+
+            <h3>User Documentation</h3>
+            <p>Update documentation files in the <code>docs/</code> directory when adding features or changing behavior.</p>
+
+            <h3>API Documentation</h3>
+            <p>Document new API endpoints in <code>docs/api.md</code> with:</p>
+            <ul>
+                <li>Endpoint path and method</li>
+                <li>Request/response formats</li>
+                <li>Example usage</li>
+                <li>Error responses</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>License and Legal</h2>
+            <p>By contributing to Conductor Framework, you agree that your contributions will be licensed under the same license as the project. Please check the <code>LICENSE</code> file for details.</p>
+
+            <h3>Code of Conduct</h3>
+            <p>We expect all contributors to:</p>
+            <ul>
+                <li>Be respectful and inclusive</li>
+                <li>Welcome newcomers and help them learn</li>
+                <li>Focus on constructive feedback</li>
+                <li>Respect different viewpoints and experiences</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Getting Help</h2>
+            <p>If you need help or have questions:</p>
+            <ul>
+                <li>Open an issue on GitHub for bugs or feature requests</li>
+                <li>Check existing issues and discussions</li>
+                <li>Review the documentation in the <code>docs/</code> directory</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Thank You!</h2>
+            <p>Your contributions make Conductor Framework better for everyone. We appreciate your time and effort!</p>
+        </section>
+    </div>
+</block>
+</extends>
+

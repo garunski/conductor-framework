@@ -1,0 +1,412 @@
+<extends src="layouts/base.html" locals='{"title": "Design Concepts - Conductor Framework"}'>
+<block name="content">
+    <div class="container mt-4">
+        <section>
+            <h1>Design Concepts</h1>
+            <p class="lead">Understand the design philosophy, patterns, and trade-offs behind Conductor Framework.</p>
+        </section>
+
+        <section>
+            <h2>Philosophy</h2>
+            
+            <h3>Design Principles</h3>
+            <ul>
+                <li><strong>Manifest-First Approach</strong>: Manifests are the source of truth, embedded at compile time</li>
+                <li><strong>Kubernetes-Native</strong>: Uses standard Kubernetes APIs and patterns</li>
+                <li><strong>Developer-Friendly</strong>: Minimal boilerplate, sensible defaults, clear APIs</li>
+                <li><strong>Extensible</strong>: Custom template functions, custom templates, plugin points</li>
+            </ul>
+
+            <h3>Core Values</h3>
+            <ul>
+                <li><strong>Simplicity</strong>: Easy to understand and use</li>
+                <li><strong>Reliability</strong>: Robust error handling and event tracking</li>
+                <li><strong>Flexibility</strong>: Support for various use cases and customization</li>
+                <li><strong>Performance</strong>: Efficient resource usage and fast operations</li>
+            </ul>
+
+            <h3>Trade-offs Made</h3>
+            <ul>
+                <li><strong>Manual Reconciliation</strong>: No automatic periodic reconciliation (explicit control via API)</li>
+                <li><strong>Embedded Manifests</strong>: Requires rebuild for manifest changes (but ensures version control and single binary)</li>
+                <li><strong>No Built-in Auth</strong>: API security left to users (flexibility vs. convenience)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Manifest-First Approach</h2>
+            
+            <h3>Why Manifests Are Embedded</h3>
+            <p>Manifests are embedded at compile time using Go's <code>embed</code> directive. This design choice provides several benefits:</p>
+            
+            <h4>Benefits</h4>
+            <ul>
+                <li><strong>Version Control Integration</strong>: Manifests are versioned with code</li>
+                <li><strong>Single Binary Deployment</strong>: No external file dependencies</li>
+                <li><strong>No External File Dependencies</strong>: Everything needed is in the binary</li>
+                <li><strong>Template Flexibility</strong>: Templates are processed at runtime with parameters</li>
+                <li><strong>Compile-Time Validation</strong>: Invalid manifests are caught at build time</li>
+            </ul>
+
+            <h4>Trade-offs</h4>
+            <ul>
+                <li>Rebuild required for manifest changes</li>
+                <li>Larger binary size (but typically minimal impact)</li>
+                <li>No runtime manifest updates (but API overrides are supported)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Template System Design</h2>
+
+            <h3>Go Template Engine Choice</h3>
+            <p>Uses Go's standard library <code>text/template</code> package for several reasons:</p>
+            <ul>
+                <li>Built into Go standard library (no external dependencies)</li>
+                <li>Familiar syntax for Go developers</li>
+                <li>Secure by default (no arbitrary code execution)</li>
+                <li>Extensible with custom functions</li>
+            </ul>
+
+            <h3>Sprig Function Integration</h3>
+            <p>Integrates <a href="https://masterminds.github.io/sprig/">Sprig</a> template functions (same library used by Helm) for:</p>
+            <ul>
+                <li>String manipulation (upper, lower, trim, replace, etc.)</li>
+                <li>Math operations (add, sub, mul, div, max, min)</li>
+                <li>List and dictionary operations</li>
+                <li>Encoding/decoding (base64, etc.)</li>
+                <li>60+ functions total</li>
+            </ul>
+
+            <h3>Security Considerations</h3>
+            <ul>
+                <li><strong>Excluded Functions</strong>: <code>env</code> and <code>expandenv</code> are excluded to prevent environment variable access</li>
+                <li><strong>No Code Execution</strong>: Templates cannot execute arbitrary code</li>
+                <li><strong>Parameter Injection Safety</strong>: Parameters are injected safely into template context</li>
+            </ul>
+
+            <h3>Custom Function Support</h3>
+            <p>Users can provide custom template functions via <code>Config.TemplateFuncs</code>, allowing:</p>
+            <ul>
+                <li>Domain-specific helper functions</li>
+                <li>Override of Sprig functions if needed</li>
+                <li>Integration with external systems</li>
+            </ul>
+
+            <h3>Parameter Injection Model</h3>
+            <p>Parameters flow from CRD spec → template context:</p>
+            <ol>
+                <li>CRD spec is retrieved (or defaults used)</li>
+                <li>Global and service-specific parameters are merged</li>
+                <li>Template context is created with full spec</li>
+                <li>Templates access parameters via <code>.Spec.Global</code> and <code>.Spec.Services</code></li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>Reconciliation Model</h2>
+
+            <h3>Manual Reconciliation</h3>
+            <p>Reconciliation is triggered manually via API endpoints rather than automatically. This provides:</p>
+            <ul>
+                <li>Explicit control over when reconciliation happens</li>
+                <li>Predictable behavior</li>
+                <li>Integration with external systems (CI/CD, schedulers)</li>
+                <li>Reduced resource usage (no background polling)</li>
+            </ul>
+
+            <h3>Event-Driven Architecture</h3>
+            <p>All reconciliation operations generate events:</p>
+            <ul>
+                <li>Success events for successful operations</li>
+                <li>Error events for failures</li>
+                <li>Info events for status updates</li>
+                <li>Warning events for non-critical issues</li>
+            </ul>
+
+            <h3>Idempotency Guarantees</h3>
+            <p>All operations are idempotent:</p>
+            <ul>
+                <li>Kubernetes server-side apply ensures idempotency</li>
+                <li>Safe to retry operations</li>
+                <li>No side effects from repeated calls</li>
+            </ul>
+
+            <h3>Resource Ownership Model</h3>
+            <p>Framework tracks managed resources:</p>
+            <ul>
+                <li>Maintains a set of managed resource keys</li>
+                <li>Orphaned resources (not in current manifests) are cleaned up</li>
+                <li>Prevents resource leaks</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>API Design</h2>
+
+            <h3>RESTful Principles</h3>
+            <ul>
+                <li>Standard HTTP methods (GET, POST, PUT, DELETE)</li>
+                <li>Resource-based URLs</li>
+                <li>JSON request/response bodies</li>
+                <li>Standard HTTP status codes</li>
+            </ul>
+
+            <h3>Resource Naming</h3>
+            <p>Resources are identified by keys in format: <code>namespace/Kind/name</code></p>
+            <p>Example: <code>default/Deployment/redis</code></p>
+
+            <h3>Error Response Format</h3>
+            <p>Structured JSON error responses:</p>
+            <div class="code-block">
+                <pre><code>{
+  "error": "error_code",
+  "message": "Human-readable message",
+  "details": {
+    "key": "value"
+  }
+}</code></pre>
+            </div>
+
+            <h3>Versioning Strategy</h3>
+            <p>Currently no API versioning. Future consideration for:</p>
+            <ul>
+                <li>URL-based versioning (<code>/api/v1/...</code>)</li>
+                <li>Header-based versioning</li>
+                <li>Backward compatibility guarantees</li>
+            </ul>
+
+            <h3>Endpoint Organization</h3>
+            <ul>
+                <li><code>/api/*</code> for REST API endpoints</li>
+                <li><code>/*</code> for Web UI routes</li>
+                <li><code>/healthz</code> and <code>/readyz</code> for health checks</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Storage Design</h2>
+
+            <h3>BadgerDB Choice Rationale</h3>
+            <p>BadgerDB was chosen as the storage backend because:</p>
+            <ul>
+                <li><strong>Embedded Database</strong>: No external database required</li>
+                <li><strong>High Performance</strong>: Fast key-value operations</li>
+                <li><strong>Go-Native</strong>: Written in Go, no CGO dependencies</li>
+                <li><strong>No External Dependencies</strong>: Single binary deployment</li>
+                <li><strong>ACID Transactions</strong>: Reliable data persistence</li>
+            </ul>
+
+            <h3>Data Model</h3>
+            <ul>
+                <li><strong>Events</strong>: Time-series data with timestamps</li>
+                <li><strong>Manifest Overrides</strong>: Key-value storage for overrides</li>
+            </ul>
+
+            <h3>Indexing Strategy</h3>
+            <p>Events are indexed by:</p>
+            <ul>
+                <li>Resource key</li>
+                <li>Event type</li>
+                <li>Timestamp (for time-range queries)</li>
+            </ul>
+
+            <h3>Retention Policies</h3>
+            <p>Configurable event retention:</p>
+            <ul>
+                <li>Default: 7 days</li>
+                <li>Configurable via <code>LogRetentionDays</code></li>
+                <li>Scheduled cleanup via <code>LogCleanupInterval</code></li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>CRD Integration</h2>
+
+            <h3>Why CRDs for Parameters</h3>
+            <p>DeploymentParameters CRD provides:</p>
+            <ul>
+                <li><strong>Kubernetes-Native</strong>: Uses standard Kubernetes APIs</li>
+                <li><strong>Declarative Configuration</strong>: GitOps-friendly</li>
+                <li><strong>Version Control Friendly</strong>: YAML files in version control</li>
+                <li><strong>Operator Pattern Alignment</strong>: Follows Kubernetes operator patterns</li>
+            </ul>
+
+            <h3>Dynamic Client Usage</h3>
+            <p>Uses Kubernetes dynamic client for:</p>
+            <ul>
+                <li>No need for generated clients</li>
+                <li>Flexible schema handling</li>
+                <li>Runtime type discovery</li>
+            </ul>
+
+            <h3>Fallback Mechanisms</h3>
+            <p>When Kubernetes is unavailable:</p>
+            <ul>
+                <li>Falls back to default parameters</li>
+                <li>Framework continues to function</li>
+                <li>Manifests are rendered with defaults</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Web UI Design</h2>
+
+            <h3>Embedded UI Approach</h3>
+            <p>Web UI is embedded as HTML templates in Go:</p>
+            <ul>
+                <li>No separate frontend build process</li>
+                <li>Single binary includes UI</li>
+                <li>Server-side rendering</li>
+            </ul>
+
+            <h3>Template Customization</h3>
+            <p>Users can provide custom templates via <code>CustomTemplateFS</code>:</p>
+            <ul>
+                <li>Override default templates</li>
+                <li>Customize UI appearance</li>
+                <li>Add custom pages</li>
+            </ul>
+
+            <h3>Real-Time Updates</h3>
+            <p>UI polls API endpoints for updates:</p>
+            <ul>
+                <li>JavaScript polling for status</li>
+                <li>Event log refresh</li>
+                <li>Health status updates</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Extensibility</h2>
+
+            <h3>Custom Template Functions</h3>
+            <p>Add custom functions via <code>Config.TemplateFuncs</code>:</p>
+            <div class="code-block">
+                <pre><code>cfg.TemplateFuncs = template.FuncMap{
+    "myCustomFunc": func(s string) string {
+        return "custom-" + s
+    },
+}</code></pre>
+            </div>
+
+            <h3>Custom Templates</h3>
+            <p>Provide custom HTML templates via <code>Config.CustomTemplateFS</code></p>
+
+            <h3>Integration Points</h3>
+            <ul>
+                <li>API endpoints for external integration</li>
+                <li>Event hooks (future consideration)</li>
+                <li>Middleware (future consideration)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Security Model</h2>
+
+            <h3>Template Security</h3>
+            <ul>
+                <li>No environment variable access (env/expandenv excluded)</li>
+                <li>No arbitrary code execution</li>
+                <li>Parameter injection is safe</li>
+            </ul>
+
+            <h3>API Security</h3>
+            <p>Currently no built-in authentication. Production recommendations:</p>
+            <ul>
+                <li>Add authentication middleware (JWT, API keys)</li>
+                <li>Implement rate limiting</li>
+                <li>Restrict CORS to specific origins</li>
+                <li>Use TLS/HTTPS</li>
+            </ul>
+
+            <h3>Kubernetes RBAC Integration</h3>
+            <p>Framework uses kubeconfig for authentication:</p>
+            <ul>
+                <li>Respects Kubernetes RBAC</li>
+                <li>Uses service account permissions when running in cluster</li>
+                <li>Follows cluster security policies</li>
+            </ul>
+
+            <h3>Secret Management</h3>
+            <p>Secrets are managed via Kubernetes secrets, not by the framework:</p>
+            <ul>
+                <li>Framework doesn't store secrets</li>
+                <li>Uses Kubernetes native secret management</li>
+                <li>Follows Kubernetes security best practices</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Scalability Considerations</h2>
+
+            <h3>Horizontal Scaling</h3>
+            <p>Framework design supports horizontal scaling:</p>
+            <ul>
+                <li>Stateless design (except BadgerDB storage)</li>
+                <li>Shared storage for multiple instances</li>
+                <li>No coordination required between instances</li>
+            </ul>
+
+            <h3>Resource Limits</h3>
+            <ul>
+                <li>Max 10 concurrent reconciliations</li>
+                <li>Configurable via code (future: configuration)</li>
+                <li>Prevents resource exhaustion</li>
+            </ul>
+
+            <h3>Performance Bottlenecks</h3>
+            <ul>
+                <li>Kubernetes API rate limits</li>
+                <li>BadgerDB write performance</li>
+                <li>Template rendering for large manifests</li>
+            </ul>
+
+            <h3>Optimization Opportunities</h3>
+            <ul>
+                <li>Batch Kubernetes API calls</li>
+                <li>Cache rendered templates</li>
+                <li>Optimize BadgerDB usage</li>
+                <li>Parallel manifest processing</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Future Design Directions</h2>
+
+            <h3>Planned Improvements</h3>
+            <ul>
+                <li>API versioning support</li>
+                <li>Built-in authentication options</li>
+                <li>Webhook support for events</li>
+                <li>Metrics and observability</li>
+            </ul>
+
+            <h3>Known Limitations</h3>
+            <ul>
+                <li>Manual reconciliation only</li>
+                <li>No built-in authentication</li>
+                <li>Single BadgerDB instance (no clustering)</li>
+            </ul>
+
+            <h3>Extension Points</h3>
+            <ul>
+                <li>Custom template functions</li>
+                <li>Custom templates</li>
+                <li>API endpoints</li>
+                <li>Event hooks (future)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Next Steps</h2>
+            <ul>
+                <li>Read <a href="implementation.html">Implementation Details</a> for technical deep dive</li>
+                <li>Check out <a href="examples.html">Examples</a> to see design in practice</li>
+                <li>Explore the <a href="https://github.com/garunski/conductor-framework">source code</a> on GitHub</li>
+            </ul>
+        </section>
+    </div>
+</block>
+</extends>
+

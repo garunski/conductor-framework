@@ -1,0 +1,266 @@
+<extends src="layouts/base.html" locals='{"title": "Implementation - Conductor Framework"}'>
+<block name="content">
+    <div class="container mt-4">
+        <section>
+            <h1>Implementation Details</h1>
+            <p class="lead">Deep dive into the framework's architecture, components, and implementation details.</p>
+        </section>
+
+        <section>
+            <h2>Architecture Overview</h2>
+            <p>Conductor Framework follows a modular architecture with clear separation of concerns. The data flow is:</p>
+            <div class="alert alert-info">
+                <strong>Manifests</strong> → <strong>Templates</strong> → <strong>Reconciliation</strong> → <strong>Kubernetes</strong>
+            </div>
+            
+            <h3>Component Interaction</h3>
+            <ol>
+                <li>Framework loads embedded manifests and applies template rendering</li>
+                <li>Manifests are stored and indexed for quick access</li>
+                <li>Server exposes REST API and Web UI</li>
+                <li>Reconciler applies manifests to Kubernetes cluster</li>
+                <li>Events are tracked and stored for monitoring</li>
+                <li>CRD client provides parameter management</li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>Core Components</h2>
+
+            <h3>Framework Core</h3>
+            <p><strong>Location:</strong> <code>pkg/framework/framework.go</code></p>
+            <p>The main entry point provides <code>framework.Run()</code> which orchestrates the entire framework lifecycle.</p>
+            
+            <h4>Initialization Sequence</h4>
+            <ol>
+                <li><strong>Logger Setup</strong>: Initialize zap logger with development configuration</li>
+                <li><strong>Config Validation</strong>: Validate all required configuration fields</li>
+                <li><strong>Kubernetes Client Setup</strong>: Create clientset and dynamic client (with fallback if unavailable)</li>
+                <li><strong>Manifest Loading</strong>: Load and template manifests with parameter injection</li>
+                <li><strong>Server Creation</strong>: Initialize HTTP server with pre-loaded manifests</li>
+                <li><strong>Lifecycle Management</strong>: Start server and handle graceful shutdown</li>
+            </ol>
+
+            <h4>Configuration Management</h4>
+            <p>The <code>Config</code> struct holds all framework configuration:</p>
+            <ul>
+                <li>Application metadata (name, version)</li>
+                <li>Manifest configuration (FS, root path, template functions)</li>
+                <li>Storage configuration (data path)</li>
+                <li>Server configuration (port)</li>
+                <li>Logging configuration (retention, cleanup interval)</li>
+                <li>CRD configuration (group, version, resource)</li>
+            </ul>
+
+            <h3>Server</h3>
+            <p><strong>Location:</strong> <code>pkg/framework/server/</code></p>
+            <p>Manages the HTTP server lifecycle and routes.</p>
+            
+            <h4>Key Responsibilities</h4>
+            <ul>
+                <li>HTTP server setup using standard library</li>
+                <li>Route registration for REST API and Web UI</li>
+                <li>Middleware stack (CORS, logging)</li>
+                <li>Lifecycle management (Start, WaitForShutdown, Close)</li>
+                <li>Graceful shutdown handling</li>
+            </ul>
+
+            <h3>Reconciler</h3>
+            <p><strong>Location:</strong> <code>pkg/framework/reconciler/</code></p>
+            <p>Handles Kubernetes resource reconciliation with concurrency control.</p>
+            
+            <h4>Key Features</h4>
+            <ul>
+                <li><strong>Client Setup</strong>: Kubernetes clientset and dynamic client</li>
+                <li><strong>Resource Application</strong>: Apply manifests to cluster using server-side apply</li>
+                <li><strong>Concurrency</strong>: Max 10 concurrent reconciliations using semaphores</li>
+                <li><strong>Error Recovery</strong>: Retry logic and error tracking</li>
+                <li><strong>Orphaned Resource Cleanup</strong>: Remove resources no longer in manifests</li>
+                <li><strong>Caching</strong>: GVK and resource name caching for performance</li>
+            </ul>
+
+            <h3>Manifest System</h3>
+            <p><strong>Location:</strong> <code>pkg/framework/manifest/</code></p>
+            <p>Loads and processes Kubernetes manifests with template rendering.</p>
+            
+            <h4>Features</h4>
+            <ul>
+                <li><strong>Embedded Filesystem Loading</strong>: Uses Go's <code>embed.FS</code></li>
+                <li><strong>Template Rendering</strong>: Go template engine with Sprig functions</li>
+                <li><strong>Sprig Integration</strong>: 60+ functions (excluding env/expandenv for security)</li>
+                <li><strong>Parameter Injection</strong>: From CRD spec or defaults</li>
+                <li><strong>File System Helper</strong>: <code>.Files.Get()</code> for template file access</li>
+                <li><strong>Custom Functions</strong>: User-defined template functions support</li>
+            </ul>
+
+            <h3>Store</h3>
+            <p><strong>Location:</strong> <code>pkg/framework/store/</code></p>
+            <p>Manages manifest storage and indexing.</p>
+            
+            <h4>Capabilities</h4>
+            <ul>
+                <li>In-memory manifest storage (map-based)</li>
+                <li>Indexing system for quick lookups</li>
+                <li>Query capabilities by resource key</li>
+                <li>Persistence layer (BadgerDB for overrides)</li>
+            </ul>
+
+            <h3>Events</h3>
+            <p><strong>Location:</strong> <code>pkg/framework/events/</code></p>
+            <p>Event tracking and storage system.</p>
+            
+            <h4>Event System</h4>
+            <ul>
+                <li><strong>Event Types</strong>: error, success, info, warning</li>
+                <li><strong>Event Structure</strong>: ID, timestamp, type, resourceKey, message, details</li>
+                <li><strong>Storage Backend</strong>: BadgerDB for persistence</li>
+                <li><strong>Querying</strong>: Filter by resource, type, time range</li>
+                <li><strong>Retention</strong>: Configurable retention policies</li>
+                <li><strong>Cleanup</strong>: Scheduled cleanup of old events</li>
+            </ul>
+
+            <h3>CRD Client</h3>
+            <p><strong>Location:</strong> <code>pkg/framework/crd/</code></p>
+            <p>Manages DeploymentParameters CRD interactions.</p>
+            
+            <h4>Functionality</h4>
+            <ul>
+                <li>Dynamic client usage for unstructured resources</li>
+                <li>Parameter retrieval (<code>GetSpec</code>)</li>
+                <li>Spec merging (global + service-specific)</li>
+                <li>Fallback to defaults when Kubernetes unavailable</li>
+                <li>Default CRD: <code>conductor.io/v1alpha1/DeploymentParameters</code></li>
+            </ul>
+
+            <h3>API Layer</h3>
+            <p><strong>Location:</strong> <code>pkg/framework/api/</code></p>
+            <p>REST API handlers and Web UI integration.</p>
+            
+            <h4>Components</h4>
+            <ul>
+                <li>HTTP handler structure</li>
+                <li>Request/response patterns (JSON)</li>
+                <li>Structured error handling</li>
+                <li>YAML and parameter validation</li>
+                <li>Web UI HTML templates</li>
+                <li>Route organization (REST + Web)</li>
+            </ul>
+
+            <h3>Database</h3>
+            <p><strong>Location:</strong> <code>pkg/framework/database/</code></p>
+            <p>BadgerDB integration for persistent storage.</p>
+            
+            <h4>Usage</h4>
+            <ul>
+                <li>Event storage (time-series data)</li>
+                <li>Manifest override persistence</li>
+                <li>Transaction handling</li>
+                <li>Configurable data path</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Key Design Patterns</h2>
+
+            <h3>Dependency Injection</h3>
+            <p>Components receive dependencies through constructors, making testing easier and dependencies explicit.</p>
+
+            <h3>Interface-Based Design</h3>
+            <p>Uses interfaces (like <code>logr.Logger</code>) to allow for different implementations and easier testing.</p>
+
+            <h3>Error Wrapping</h3>
+            <p>Uses Go 1.13+ error wrapping with <code>fmt.Errorf</code> and <code>%w</code> verb for error chains.</p>
+
+            <h3>Context Propagation</h3>
+            <p>Uses <code>context.Context</code> throughout for cancellation and timeout handling.</p>
+
+            <h3>Resource Management</h3>
+            <p>Uses <code>defer</code> for cleanup and proper resource management (database connections, file handles).</p>
+        </section>
+
+        <section>
+            <h2>Concurrency Model</h2>
+
+            <h3>Goroutine Usage</h3>
+            <ul>
+                <li>Reconciliation operations run in goroutines</li>
+                <li>Event cleanup runs in background goroutines</li>
+                <li>HTTP server handles requests concurrently</li>
+            </ul>
+
+            <h3>Channel Patterns</h3>
+            <ul>
+                <li><code>reconcileCh</code>: Channel for reconciliation triggers</li>
+                <li><code>firstReconcileCh</code>: Channel to signal first reconciliation</li>
+            </ul>
+
+            <h3>Mutex Usage</h3>
+            <ul>
+                <li><code>sync.Mutex</code>: For exclusive access</li>
+                <li><code>sync.RWMutex</code>: For read-write locks</li>
+                <li>Used for cache updates and shared state</li>
+            </ul>
+
+            <h3>Concurrency Limits</h3>
+            <p>Semaphores limit concurrent reconciliation operations to 10 to prevent resource exhaustion.</p>
+        </section>
+
+        <section>
+            <h2>Error Handling</h2>
+
+            <h3>Error Types</h3>
+            <p>Custom error types in <code>pkg/framework/errors/</code> for different error categories.</p>
+
+            <h3>Error Wrapping</h3>
+            <p>Errors are wrapped with context using <code>fmt.Errorf</code> and <code>%w</code> to preserve error chains.</p>
+
+            <h3>Logging Patterns</h3>
+            <p>Structured logging with <code>logr</code> interface, providing consistent log format and levels.</p>
+
+            <h3>User-Facing Errors</h3>
+            <p>API errors are formatted as structured JSON responses with error codes and messages.</p>
+
+            <h3>Event Storage</h3>
+            <p>All errors are stored as events for later analysis and debugging.</p>
+        </section>
+
+        <section>
+            <h2>Performance Considerations</h2>
+
+            <h3>Caching Strategies</h3>
+            <ul>
+                <li>GVK cache: Caches GroupVersionKind lookups</li>
+                <li>Resource name cache: Caches resource name mappings</li>
+                <li>Reduces Kubernetes API calls</li>
+            </ul>
+
+            <h3>Resource Pooling</h3>
+            <p>Kubernetes clients are reused across requests to avoid connection overhead.</p>
+
+            <h3>Optimization Techniques</h3>
+            <ul>
+                <li>Concurrent reconciliation with limits</li>
+                <li>Batch operations where possible</li>
+                <li>Efficient data structures for lookups</li>
+            </ul>
+
+            <h3>Scalability Limits</h3>
+            <ul>
+                <li>Max 10 concurrent reconciliations</li>
+                <li>BadgerDB performance characteristics</li>
+                <li>In-memory manifest storage limits</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Next Steps</h2>
+            <ul>
+                <li>Read about <a href="design.html">Design Concepts</a> to understand the philosophy</li>
+                <li>Check out <a href="examples.html">Examples</a> to see it in action</li>
+                <li>Explore the <a href="https://github.com/garunski/conductor-framework">source code</a> on GitHub</li>
+            </ul>
+        </section>
+    </div>
+</block>
+</extends>
+

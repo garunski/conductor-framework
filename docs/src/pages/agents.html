@@ -1,0 +1,375 @@
+<extends src="layouts/base.html" locals='{"title": "AI Agents - Conductor Framework"}'>
+<block name="content">
+    <div class="container mt-4">
+        <section>
+            <h1>AI Agents Integration</h1>
+            <p class="lead">Learn how AI agents can interact with Conductor Framework through the REST API.</p>
+        </section>
+
+        <section>
+            <h2>Introduction</h2>
+            <p>Conductor Framework's REST API makes it ideal for AI agent automation. Agents can deploy services, monitor health, manage parameters, and troubleshoot issues programmatically.</p>
+            
+            <h3>Benefits of API-Driven Approach</h3>
+            <ul>
+                <li><strong>Automation</strong>: Deploy and manage Kubernetes applications without manual intervention</li>
+                <li><strong>Orchestration</strong>: Coordinate complex multi-service deployments</li>
+                <li><strong>Monitoring</strong>: Continuously monitor service health and events</li>
+                <li><strong>Troubleshooting</strong>: Automatically diagnose and resolve deployment issues</li>
+                <li><strong>Integration</strong>: Easily integrate with CI/CD pipelines and automation tools</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Prompt Examples</h2>
+
+            <h3>Example 1: Creating a New Conductor</h3>
+            <p><strong>Prompt:</strong> "Create a new conductor for managing a microservices application with Redis and PostgreSQL"</p>
+            <p><strong>Expected Output Structure:</strong></p>
+            <div class="code-block">
+                <pre><code>package main
+
+import (
+    "context"
+    "embed"
+    "log"
+    "github.com/garunski/conductor-framework/pkg/framework"
+)
+
+//go:embed manifests
+var manifestFS embed.FS
+
+func main() {
+    ctx := context.Background()
+    cfg := framework.DefaultConfig()
+    cfg.AppName = "microservices-conductor"
+    cfg.ManifestFS = manifestFS
+    cfg.ManifestRoot = "manifests"
+    
+    if err := framework.Run(ctx, cfg); err != nil {
+        log.Fatalf("Error: %v", err)
+    }
+}</code></pre>
+            </div>
+            <p><strong>Key Components to Include:</strong></p>
+            <ul>
+                <li><code>main.go</code> with framework initialization</li>
+                <li><code>manifests/</code> directory with service manifests</li>
+                <li>DeploymentParameters CRD for configuration</li>
+                <li>Template-based manifests with parameter substitution</li>
+            </ul>
+
+            <h3>Example 2: Deploying Services</h3>
+            <p><strong>Prompt:</strong> "Deploy the frontend and redis-master services using the conductor API"</p>
+            <p><strong>API Call:</strong></p>
+            <div class="code-block">
+                <pre><code>curl -X POST http://localhost:8081/api/up \
+  -H "Content-Type: application/json" \
+  -d '{
+    "services": ["frontend", "redis-master"]
+  }'</code></pre>
+            </div>
+            <p><strong>Expected Response:</strong></p>
+            <div class="code-block">
+                <pre><code>{
+  "message": "Successfully deployed all manifests"
+}</code></pre>
+            </div>
+            <p><strong>Error Handling:</strong></p>
+            <div class="code-block">
+                <pre><code>{
+  "error": "reconciliation_error",
+  "message": "Deployment failed",
+  "details": {
+    "resource": "default/Deployment/frontend",
+    "error": "ImagePullBackOff"
+  }
+}</code></pre>
+            </div>
+
+            <h3>Example 3: Monitoring and Health Checks</h3>
+            <p><strong>Prompt:</strong> "Check the health status of all services and report any errors"</p>
+            <p><strong>Step 1: Get Service Health</strong></p>
+            <div class="code-block">
+                <pre><code>curl http://localhost:8081/api/services/health</code></pre>
+            </div>
+            <p><strong>Response:</strong></p>
+            <div class="code-block">
+                <pre><code>{
+  "services": [
+    {
+      "name": "frontend",
+      "namespace": "default",
+      "status": "healthy",
+      "lastChecked": "2024-01-01T00:00:00Z"
+    },
+    {
+      "name": "redis-master",
+      "namespace": "default",
+      "status": "unhealthy",
+      "lastChecked": "2024-01-01T00:00:00Z"
+    }
+  ]
+}</code></pre>
+            </div>
+            <p><strong>Step 2: Query Error Events</strong></p>
+            <div class="code-block">
+                <pre><code>curl "http://localhost:8081/api/events?type=error&limit=10"</code></pre>
+            </div>
+            <p><strong>Error Detection Pattern:</strong></p>
+            <ol>
+                <li>Check service health status</li>
+                <li>If unhealthy, query error events for that service</li>
+                <li>Analyze error messages and details</li>
+                <li>Take corrective action based on error type</li>
+            </ol>
+
+            <h3>Example 4: Parameter Management</h3>
+            <p><strong>Prompt:</strong> "Update the deployment parameters to scale redis to 5 replicas"</p>
+            <p><strong>Step 1: Get Current Parameters</strong></p>
+            <div class="code-block">
+                <pre><code>curl http://localhost:8081/api/parameters</code></pre>
+            </div>
+            <p><strong>Step 2: Update Parameters</strong></p>
+            <div class="code-block">
+                <pre><code>curl -X POST http://localhost:8081/api/parameters \
+  -H "Content-Type: application/json" \
+  -d '{
+    "global": {
+      "namespace": "default",
+      "replicas": 1
+    },
+    "services": {
+      "redis": {
+        "replicas": 5
+      }
+    }
+  }'</code></pre>
+            </div>
+            <p><strong>Step 3: Redeploy to Apply Changes</strong></p>
+            <div class="code-block">
+                <pre><code>curl -X POST http://localhost:8081/api/update \
+  -H "Content-Type: application/json" \
+  -d '{"services": ["redis"]}'</code></pre>
+            </div>
+            <p><strong>Parameter Update Workflow:</strong></p>
+            <ol>
+                <li>Retrieve current parameters</li>
+                <li>Modify parameter values</li>
+                <li>Update parameters via API</li>
+                <li>Trigger reconciliation to apply changes</li>
+                <li>Verify deployment status</li>
+            </ol>
+
+            <h3>Example 5: Troubleshooting</h3>
+            <p><strong>Prompt:</strong> "Diagnose why the frontend service deployment failed"</p>
+            <p><strong>Step 1: Get Error Events</strong></p>
+            <div class="code-block">
+                <pre><code>curl "http://localhost:8081/api/events/errors?limit=20"</code></pre>
+            </div>
+            <p><strong>Step 2: Filter by Resource</strong></p>
+            <div class="code-block">
+                <pre><code>curl "http://localhost:8081/api/events/default/Deployment/frontend?limit=10"</code></pre>
+            </div>
+            <p><strong>Common Error Patterns:</strong></p>
+            <ul>
+                <li><strong>ImagePullBackOff</strong>: Image not found or registry access issue</li>
+                <li><strong>CrashLoopBackOff</strong>: Container crashing on startup</li>
+                <li><strong>Pending</strong>: Resource constraints or scheduling issues</li>
+                <li><strong>RBAC Error</strong>: Insufficient permissions</li>
+            </ul>
+            <p><strong>Debugging Workflow:</strong></p>
+            <ol>
+                <li>Query error events for the failing resource</li>
+                <li>Examine error messages and details</li>
+                <li>Check related resources (pods, services)</li>
+                <li>Review manifest configuration</li>
+                <li>Apply fixes and redeploy</li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>API Integration Patterns</h2>
+            
+            <h3>REST API Endpoints Summary</h3>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Method</th>
+                            <th>Endpoint</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/healthz</code></td>
+                            <td>Health check</td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/readyz</code></td>
+                            <td>Readiness check</td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/services</code></td>
+                            <td>List all services</td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/services/health</code></td>
+                            <td>Get service health status</td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/api/up</code></td>
+                            <td>Deploy services</td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/api/down</code></td>
+                            <td>Remove services</td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/api/update</code></td>
+                            <td>Update services</td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/events</code></td>
+                            <td>List events with filtering</td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/events/errors</code></td>
+                            <td>Get recent errors</td>
+                        </tr>
+                        <tr>
+                            <td>GET</td>
+                            <td><code>/api/parameters</code></td>
+                            <td>Get deployment parameters</td>
+                        </tr>
+                        <tr>
+                            <td>POST</td>
+                            <td><code>/api/parameters</code></td>
+                            <td>Update deployment parameters</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Authentication Considerations</h3>
+            <div class="alert alert-warning">
+                <strong>Note:</strong> Currently, the API does not require authentication. In production environments, you should:
+                <ul class="mb-0 mt-2">
+                    <li>Add authentication middleware (JWT, API keys, etc.)</li>
+                    <li>Implement rate limiting</li>
+                    <li>Restrict CORS to specific origins</li>
+                    <li>Use TLS/HTTPS for all API calls</li>
+                </ul>
+            </div>
+
+            <h3>Error Handling Patterns</h3>
+            <p>All API endpoints return structured error responses:</p>
+            <div class="code-block">
+                <pre><code>{
+  "error": "error_code",
+  "message": "Human-readable error message",
+  "details": {
+    "key": "value"
+  }
+}</code></pre>
+            </div>
+            <p><strong>Common Error Codes:</strong></p>
+            <ul>
+                <li><code>not_found</code> - Resource not found</li>
+                <li><code>validation_error</code> - Validation failed</li>
+                <li><code>invalid_yaml</code> - Invalid YAML format</li>
+                <li><code>kubernetes_error</code> - Kubernetes API error</li>
+                <li><code>reconciliation_error</code> - Reconciliation failed</li>
+            </ul>
+
+            <h3>Best Practices for Agents</h3>
+            <ul>
+                <li><strong>Idempotency</strong>: All deployment operations are idempotent - safe to retry</li>
+                <li><strong>Polling</strong>: Poll health endpoints periodically rather than assuming immediate success</li>
+                <li><strong>Error Recovery</strong>: Implement retry logic with exponential backoff for transient errors</li>
+                <li><strong>Event Monitoring</strong>: Subscribe to event streams for real-time status updates</li>
+                <li><strong>Resource Validation</strong>: Validate parameters before updating to prevent invalid configurations</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Workflow Automation</h2>
+
+            <h3>Multi-Step Agent Workflows</h3>
+            <p>Example: Complete deployment workflow</p>
+            <div class="code-block">
+                <pre><code># 1. Check conductor health
+curl http://localhost:8081/healthz
+
+# 2. Get current parameters
+curl http://localhost:8081/api/parameters
+
+# 3. Update parameters if needed
+curl -X POST http://localhost:8081/api/parameters -d '{...}'
+
+# 4. Deploy services
+curl -X POST http://localhost:8081/api/up -d '{"services": [...]}'
+
+# 5. Wait and check health
+sleep 10
+curl http://localhost:8081/api/services/health
+
+# 6. Monitor events
+curl http://localhost:8081/api/events?limit=10</code></pre>
+            </div>
+
+            <h3>State Management</h3>
+            <p>Agents should track:</p>
+            <ul>
+                <li>Deployment state (deployed, updating, failed)</li>
+                <li>Last reconciliation time</li>
+                <li>Error history and patterns</li>
+                <li>Parameter change history</li>
+            </ul>
+
+            <h3>Retry Logic Patterns</h3>
+            <div class="code-block">
+                <pre><code>def deploy_with_retry(service, max_retries=3):
+    for attempt in range(max_retries):
+        response = deploy_service(service)
+        if response.status == "success":
+            return response
+        if response.error_code == "kubernetes_error":
+            wait_time = 2 ** attempt  # Exponential backoff
+            time.sleep(wait_time)
+        else:
+            break  # Don't retry non-transient errors
+    raise DeploymentError("Failed after retries")</code></pre>
+            </div>
+
+            <h3>Idempotency Handling</h3>
+            <p>All deployment operations are idempotent. Agents can safely:</p>
+            <ul>
+                <li>Retry failed operations without side effects</li>
+                <li>Re-apply configurations that are already applied</li>
+                <li>Call update endpoints even if nothing changed</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Next Steps</h2>
+            <ul>
+                <li>Explore the <a href="examples.html">Examples</a> to see real-world usage</li>
+                <li>Read the <a href="implementation.html">Implementation</a> details for API internals</li>
+                <li>Check the full <a href="https://github.com/garunski/conductor-framework/blob/main/docs/api.md">API Reference</a> for all endpoints</li>
+            </ul>
+        </section>
+    </div>
+</block>
+</extends>
+

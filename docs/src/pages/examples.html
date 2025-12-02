@@ -1,0 +1,242 @@
+<extends src="layouts/base.html" locals='{"title": "Examples - Conductor Framework"}'>
+<block name="content">
+    <div class="container mt-4">
+        <section>
+            <h1>Examples</h1>
+            <p class="lead">Learn how to use Conductor Framework through practical examples.</p>
+        </section>
+
+        <section>
+            <h2>Introduction</h2>
+            <p>The examples demonstrate real-world usage of Conductor Framework for managing Kubernetes applications. They show how to structure manifests, configure parameters, and deploy services.</p>
+            
+            <h3>Prerequisites</h3>
+            <ul>
+                <li>Go 1.25.4+ (or latest stable version)</li>
+                <li>Docker (or compatible container runtime)</li>
+                <li>Kubernetes cluster (local or remote)</li>
+                <li>kubectl configured to access your cluster</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Guestbook Conductor Example</h2>
+            <p>The Guestbook Conductor is a working example that demonstrates how to use the conductor-framework to manage a multi-service Kubernetes application. The Guestbook application is a classic Kubernetes example consisting of:</p>
+            
+            <ul>
+                <li><strong>Frontend</strong>: Web server (PHP) serving the guestbook UI</li>
+                <li><strong>Redis Master</strong>: Primary Redis instance for data storage</li>
+                <li><strong>Redis Slave</strong>: Redis replica for read scaling</li>
+            </ul>
+            
+            <p>This conductor manages all three services using the conductor-framework's manifest reconciliation capabilities.</p>
+
+            <h3>What It Demonstrates</h3>
+            <ul>
+                <li>Manifest reconciliation for multiple services</li>
+                <li>Template-based manifest generation with parameters</li>
+                <li>CRD-based parameter management</li>
+                <li>Service deployment and monitoring</li>
+                <li>Event tracking and error handling</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Project Structure</h2>
+            <div class="code-block">
+                <pre><code>guestbook-conductor/
+├── main.go              # Conductor entry point
+├── Dockerfile           # Container build
+├── README.md            # Documentation
+├── go.mod               # Go module file
+├── manifests/           # Kubernetes manifests
+│   ├── frontend/
+│   │   ├── deployment.yaml
+│   │   └── service.yaml
+│   ├── redis-master/
+│   │   ├── deployment.yaml
+│   │   └── service.yaml
+│   └── redis-slave/
+│       ├── deployment.yaml
+│       └── service.yaml
+└── deploy/              # Deployment configurations
+    ├── conductor.yaml
+    ├── build.sh
+    ├── up.sh
+    └── down.sh</code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>Step-by-Step Walkthrough</h2>
+
+            <h3>1. Setup: Embedding Manifests</h3>
+            <p>The first step is to embed your Kubernetes manifests using Go's embed directive:</p>
+            <div class="code-block">
+                <pre><code>package main
+
+import (
+    "context"
+    "embed"
+    "log"
+    "os"
+
+    "github.com/garunski/conductor-framework/pkg/framework"
+)
+
+//go:embed manifests
+var manifestFS embed.FS
+
+func main() {
+    ctx := context.Background()
+
+    cfg := framework.DefaultConfig()
+    cfg.AppName = "guestbook-conductor"
+    cfg.AppVersion = getVersion()
+    cfg.ManifestFS = manifestFS
+    cfg.ManifestRoot = "manifests"
+
+    if err := framework.Run(ctx, cfg); err != nil {
+        log.Fatalf("Error: %v", err)
+    }
+}
+
+func getVersion() string {
+    if v := os.Getenv("VERSION"); v != "" {
+        return v
+    }
+    return "dev"
+}</code></pre>
+            </div>
+
+            <h3>2. Manifests: Structure and Template Syntax</h3>
+            <p>Manifests are organized by service in the <code>manifests/</code> directory. Each service has deployment and service YAML files that use Go template syntax for parameter substitution:</p>
+            <div class="code-block">
+                <pre><code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{if .NamePrefix}}{{.NamePrefix}}-{{end}}frontend
+  namespace: {{.Namespace}}
+spec:
+  replicas: {{.Replicas | default 1}}
+  template:
+    spec:
+      containers:
+      - name: frontend
+        image: {{.ImageTag | default "latest"}}</code></pre>
+            </div>
+            <p>Parameters are provided via the DeploymentParameters CRD or extracted from manifest defaults.</p>
+
+            <h3>3. Parameters: Using DeploymentParameters CRD</h3>
+            <p>Configure deployment parameters using a Kubernetes CRD:</p>
+            <div class="code-block">
+                <pre><code>apiVersion: conductor.io/v1alpha1
+kind: DeploymentParameters
+metadata:
+  name: default
+  namespace: default
+spec:
+  global:
+    namespace: default
+    replicas: 1
+  services:
+    redis:
+      replicas: 3
+      imageTag: "7.0"
+    frontend:
+      replicas: 2
+      imageTag: "v5"</code></pre>
+            </div>
+
+            <h3>4. Running: Starting the Conductor</h3>
+            <p>Build and run the conductor locally:</p>
+            <div class="code-block">
+                <pre><code># Build
+cd examples/guestbook-conductor
+go build -o guestbook-conductor .
+
+# Run
+./guestbook-conductor</code></pre>
+            </div>
+            <p>The conductor will:</p>
+            <ol>
+                <li>Load manifests from the embedded <code>manifests/</code> directory</li>
+                <li>Start a web server on port 8081 (configurable via <code>PORT</code> env var)</li>
+                <li>Provide a web UI at <code>http://localhost:8081</code></li>
+                <li>Manage Kubernetes resources based on the manifests</li>
+            </ol>
+
+            <h3>5. Deployment: Using API/UI to Deploy Services</h3>
+            <p>Deploy services using the REST API:</p>
+            <div class="code-block">
+                <pre><code># Deploy all services
+curl -X POST http://localhost:8081/api/up
+
+# Deploy specific services
+curl -X POST http://localhost:8081/api/up \
+  -H "Content-Type: application/json" \
+  -d '{"services": ["frontend", "redis-master", "redis-slave"]}'</code></pre>
+            </div>
+            <p>Or use the Web UI at <code>http://localhost:8081</code> to deploy, update, or remove services interactively.</p>
+
+            <h3>6. Monitoring: Viewing Events and Health Status</h3>
+            <p>Monitor your deployments:</p>
+            <div class="code-block">
+                <pre><code># Get service health
+curl http://localhost:8081/api/services/health
+
+# Get events
+curl http://localhost:8081/api/events?limit=10
+
+# Get errors only
+curl http://localhost:8081/api/events/errors</code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>Workflow</h2>
+            <p>The complete workflow from configuration to deployment:</p>
+            <div class="alert alert-info">
+                <strong>Values (CRD/Defaults)</strong> → <strong>Templating</strong> → <strong>Manifests</strong> → <strong>Reconciliation</strong> → <strong>Kubernetes Resources</strong>
+            </div>
+            <ol>
+                <li><strong>Values</strong>: Parameters are defined in DeploymentParameters CRD or use framework defaults</li>
+                <li><strong>Templating</strong>: Go templates render manifests with parameter values and Sprig functions</li>
+                <li><strong>Manifests</strong>: Rendered Kubernetes YAML manifests are stored and indexed</li>
+                <li><strong>Reconciliation</strong>: Framework applies manifests to Kubernetes cluster via API</li>
+                <li><strong>Kubernetes Resources</strong>: Resources are created/updated in the cluster</li>
+            </ol>
+        </section>
+
+        <section>
+            <h2>Deploying to Kubernetes</h2>
+            <p>You can also deploy the conductor itself to Kubernetes:</p>
+            <div class="code-block">
+                <pre><code>cd examples/guestbook-conductor/deploy
+./up.sh</code></pre>
+            </div>
+            <p>This will:</p>
+            <ol>
+                <li>Build the Docker image (if not already built)</li>
+                <li>Deploy the conductor to the <code>guestbook-conductor</code> namespace</li>
+                <li>Set up RBAC, PVC, and all necessary resources</li>
+            </ol>
+            <p>To access the Web UI, port-forward the service:</p>
+            <div class="code-block">
+                <pre><code>kubectl port-forward -n guestbook-conductor svc/guestbook-conductor 8081:8081</code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>Next Steps</h2>
+            <ul>
+                <li>Explore the <a href="agents.html">AI Agents</a> page to see how to automate deployments</li>
+                <li>Read the <a href="implementation.html">Implementation</a> details to understand the framework internals</li>
+                <li>Check out the <a href="design.html">Design Concepts</a> to learn about the architecture</li>
+                <li>View the full <a href="https://github.com/garunski/conductor-framework/tree/main/examples/guestbook-conductor">example source code</a> on GitHub</li>
+            </ul>
+        </section>
+    </div>
+</block>
+</extends>
+

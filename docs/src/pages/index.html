@@ -1,0 +1,163 @@
+<extends src="layouts/base.html" locals='{"title": "Home - Conductor Framework"}'>
+<block name="content">
+    <div class="hero-section">
+        <div class="container">
+            <h1>Conductor Framework</h1>
+            <p class="lead">A reusable framework for building Kubernetes operators that manage application deployments through manifest reconciliation.</p>
+            <div class="mt-4">
+                <a href="examples.html" class="btn btn-light btn-lg me-2">View Examples</a>
+                <a href="https://github.com/garunski/conductor-framework" class="btn btn-outline-light btn-lg">GitHub</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section>
+            <h2>What is Conductor Framework?</h2>
+            <p>Conductor Framework provides a complete foundation for building Kubernetes operators with minimal boilerplate. It handles manifest management, templating, reconciliation, and provides both a REST API and Web UI out of the box.</p>
+            <p>The framework is designed for developers who want to build operators that manage multi-service Kubernetes applications without writing all the infrastructure code from scratch.</p>
+        </section>
+
+        <section>
+            <h2>Quick Start</h2>
+            <p>Get started with Conductor Framework in minutes:</p>
+            <div class="code-block">
+                <pre><code>go get github.com/garunski/conductor-framework/pkg/framework</code></pre>
+            </div>
+            <p>Minimal example:</p>
+            <div class="code-block">
+                <pre><code>package main
+
+import (
+    "context"
+    "embed"
+    "log"
+    
+    "github.com/garunski/conductor-framework/pkg/framework"
+)
+
+//go:embed manifests
+var manifestFiles embed.FS
+
+func main() {
+    ctx := context.Background()
+    
+    cfg := framework.DefaultConfig()
+    cfg.AppName = "my-operator"
+    cfg.ManifestFS = manifestFiles
+    
+    if err := framework.Run(ctx, cfg); err != nil {
+        log.Fatalf("Framework error: %v", err)
+    }
+}</code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>Features at a Glance</h2>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Manifest Engine</h5>
+                            <p class="card-text">Load, template, and reconcile Kubernetes manifests with 60+ Sprig template functions (same as Helm).</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">REST API & Web UI</h5>
+                            <p class="card-text">Built-in web interface and comprehensive REST API for managing deployments, monitoring health, and viewing events.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">CRD-Based Parameters</h5>
+                            <p class="card-text">Manage deployment parameters using Kubernetes Custom Resource Definitions for a native Kubernetes experience.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Event Tracking</h5>
+                            <p class="card-text">Persistent event storage with BadgerDB, querying, filtering, and retention policies for all reconciliation operations.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Reconciliation Loop</h5>
+                            <p class="card-text">Manual reconciliation via API endpoints with event tracking, error handling, and retry logic.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card feature-card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Template System</h5>
+                            <p class="card-text">Go template syntax with Sprig functions, custom functions support, and parameter injection from CRDs or defaults.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Explore Documentation</h2>
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Examples</h5>
+                            <p class="card-text">Learn by example with the Guestbook Conductor example showing how to manage a multi-service application.</p>
+                            <a href="examples.html" class="btn btn-primary">View Examples</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">AI Agents</h5>
+                            <p class="card-text">Discover how AI agents can interact with Conductor Framework through the REST API with example prompts.</p>
+                            <a href="agents.html" class="btn btn-primary">AI Agents</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Implementation</h5>
+                            <p class="card-text">Deep dive into the framework's architecture, components, and implementation details.</p>
+                            <a href="implementation.html" class="btn btn-primary">Implementation</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Design Concepts</h5>
+                            <p class="card-text">Understand the design philosophy, patterns, and trade-offs behind Conductor Framework.</p>
+                            <a href="design.html" class="btn btn-primary">Design</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">Contributing</h5>
+                            <p class="card-text">Learn how to contribute to Conductor Framework, including code standards and workflow.</p>
+                            <a href="contributing.html" class="btn btn-primary">Contributing</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</block>
+</extends>
+

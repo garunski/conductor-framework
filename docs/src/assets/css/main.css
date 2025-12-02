@@ -1,0 +1,345 @@
+@import "bootstrap/dist/css/bootstrap.min.css";
+
+/* CSS Variables - Match Conductor Framework */
+:root {
+    --bg: #ffffff;
+    --sidebar: #ffffff;
+    --text: #1a1a1a;
+    --accent: #000000;
+    --accent2: #333333;
+    --accent3: #666666;
+    --color-success: #22c55e;
+    --color-error: #ff0000;
+    --color-info: #0000ff;
+    --color-warning: #ffaa00;
+}
+
+[data-bs-theme="dark"] {
+    --bg: #1a1a1a;
+    --sidebar: #1a1a1a;
+    --text: #e0e0e0;
+    --accent: #ffffff;
+    --accent2: #cccccc;
+    --accent3: #999999;
+}
+
+/* Global Reset - Neo-Brutalist */
+* {
+    border-radius: 0 !important;
+}
+
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    line-height: 1.6;
+}
+
+/* Bootstrap Card - Neo-Brutalist Override */
+.card {
+    background: var(--bg);
+    border: 2px solid var(--text);
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.card-header {
+    background: transparent;
+    border: none;
+}
+
+.card-header h2,
+.card-header h5 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.card-body h3,
+.card-body h5 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.card-text {
+    color: var(--text);
+}
+
+/* Bootstrap Button - Neo-Brutalist Override */
+.btn {
+    background: var(--text);
+    color: var(--bg);
+    border: 2px solid var(--text);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    transition: none;
+    border-radius: 0 !important;
+}
+
+.btn:hover {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.btn-primary {
+    background: var(--text);
+    color: var(--bg);
+    border: 2px solid var(--text);
+}
+
+.btn-primary:hover {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.btn-light {
+    background: var(--bg);
+    color: var(--text);
+    border: 2px solid var(--text);
+}
+
+.btn-light:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.btn-outline-light {
+    background: transparent;
+    color: var(--bg);
+    border: 2px solid var(--bg);
+}
+
+.btn-outline-light:hover {
+    background: var(--bg);
+    color: var(--text);
+}
+
+/* Bootstrap Navbar - Neo-Brutalist Override */
+.navbar {
+    border-bottom: 2px solid var(--text);
+    background: var(--bg) !important;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text) !important;
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.navbar-toggler {
+    border: 2px solid var(--text);
+    background: var(--bg);
+}
+
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(26, 26, 26, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+[data-bs-theme="dark"] .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(224, 224, 224, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-weight: 700;
+    color: var(--text);
+}
+
+h1 {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+h2 {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--text);
+    padding-bottom: 0.5rem;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Hero Section */
+.hero-section {
+    background: var(--text);
+    color: var(--bg);
+    padding: 4rem 0;
+    margin-bottom: 3rem;
+    border-bottom: 2px solid var(--text);
+}
+
+.hero-section h1 {
+    color: var(--bg);
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.hero-section p.lead {
+    color: var(--bg);
+    font-size: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+/* Code Blocks */
+.code-block {
+    background: var(--bg);
+    border: 2px solid var(--text);
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+.code-block pre {
+    margin: 0;
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.code-block code {
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+pre code {
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 0.9rem;
+}
+
+/* Feature Cards */
+.feature-card {
+    transition: none;
+    height: 100%;
+}
+
+.feature-card:hover {
+    background: var(--text);
+    color: var(--bg);
+}
+
+.feature-card:hover * {
+    color: var(--bg) !important;
+}
+
+/* Sections */
+section {
+    margin-bottom: 3rem;
+}
+
+/* Tables */
+.table {
+    border: 2px solid var(--text);
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+[data-bs-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.table-responsive {
+    margin: 1.5rem 0;
+}
+
+/* Alerts */
+.alert {
+    border: 2px solid var(--text);
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.alert-info {
+    background: var(--bg);
+    color: var(--text);
+    border-color: var(--color-info);
+}
+
+.alert-warning {
+    background: var(--bg);
+    color: var(--text);
+    border-color: var(--color-warning);
+}
+
+/* Footer */
+footer {
+    border-top: 2px solid var(--text);
+    background: var(--bg) !important;
+    color: var(--text) !important;
+}
+
+footer h5 {
+    color: var(--text);
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+footer p {
+    color: var(--text);
+}
+
+footer a {
+    color: var(--text);
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
+    color: var(--accent);
+}
+
+/* Links */
+a {
+    color: var(--text);
+    text-decoration: underline;
+}
+
+a:hover {
+    color: var(--accent);
+}
+
+/* Lists */
+ul, ol {
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+/* Paragraphs */
+p {
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
+
+.container {
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+}
