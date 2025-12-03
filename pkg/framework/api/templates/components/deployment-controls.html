@@ -8,17 +8,6 @@
                     <p class="card-description mb-0">Manage your Kubernetes deployments with powerful {{.AppName}}
                         controls. Deploy, update, or remove all resources with a single action.</p>
                 </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <div class="d-flex align-items-center gap-2">
-                        <label for="instance-selector" class="small mb-0">Parameter Instance:</label>
-                        <select id="instance-selector" class="form-select form-select-sm" style="width: auto; min-width: 150px;">
-                            <option value="default">default</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-sm" id="btn-refresh-status">
-                        REFRESH
-                    </button>
-                </div>
             </div>
         </div>
         <div class="card-body">
@@ -31,7 +20,16 @@
                         <p class="small text-muted mb-0">Choose which services to manage. Actions below will only affect
                             selected services.</p>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-secondary dropdown-toggle custom-dropdown-btn" type="button" id="instance-selector-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span id="instance-selector-label">default</span>
+                            </button>
+                            <ul class="dropdown-menu custom-dropdown-menu" aria-labelledby="instance-selector-dropdown" id="instance-selector-menu">
+                                <li><a class="dropdown-item custom-dropdown-item" href="#" data-value="default">default</a></li>
+                            </ul>
+                            <input type="hidden" id="instance-selector" value="default">
+                        </div>
                         <button type="button" class="btn btn-sm btn-secondary" id="btn-select-all">SELECT ALL</button>
                         <button type="button" class="btn btn-sm btn-secondary" id="btn-deselect-all">DESELECT
                             ALL</button>

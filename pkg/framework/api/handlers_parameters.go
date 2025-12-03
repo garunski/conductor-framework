@@ -368,8 +368,10 @@ func (h *Handler) ListParameterInstances(w http.ResponseWriter, r *http.Request)
 			instances, err = h.parameterClient.List(ctx, "default")
 		}
 		if err != nil {
-			h.logger.Error(err, "failed to list parameter instances")
-			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "list_instances_failed", err.Error(), nil)
+			// If listing fails (e.g., no Kubernetes cluster), return at least "default"
+			// This allows the UI to work even when cluster is unavailable
+			h.logger.V(1).Info("failed to list parameter instances, returning default only", "error", err)
+			WriteJSONResponse(w, h.logger, http.StatusOK, []string{"default"})
 			return
 		}
 	}
@@ -378,6 +380,23 @@ func (h *Handler) ListParameterInstances(w http.ResponseWriter, r *http.Request)
 	instanceNames := make([]string, 0, len(instances))
 	for _, instance := range instances {
 		instanceNames = append(instanceNames, instance.Name)
+	}
+	
+	// If no instances found, ensure "default" is always available
+	if len(instanceNames) == 0 {
+		instanceNames = []string{"default"}
+	} else {
+		// Check if "default" is in the list, if not add it
+		hasDefault := false
+		for _, name := range instanceNames {
+			if name == crd.DefaultName {
+				hasDefault = true
+				break
+			}
+		}
+		if !hasDefault {
+			instanceNames = append(instanceNames, crd.DefaultName)
+		}
 	}
 	
 	// Sort for consistent ordering

@@ -106,59 +106,6 @@
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
 
-        // Refresh button functionality
-        const refreshBtn = document.getElementById('btn-refresh-status');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', function() {
-                fetch('/api/installation-status')
-                    .then(res => res.json())
-                    .then(data => {
-                        const installationStatus = data.installationStatus || {};
-                        document.querySelectorAll('.service-card').forEach(card => {
-                            const checkbox = card.querySelector('.service-checkbox');
-                            if (!checkbox) return;
-                            
-                            const serviceName = checkbox.value;
-                            const isInstalled = installationStatus[serviceName] || false;
-                            
-                            if (isInstalled) {
-                                card.classList.remove('service-card-not-installed');
-                                card.classList.add('service-card-installed');
-                            } else {
-                                card.classList.remove('service-card-installed');
-                                card.classList.add('service-card-not-installed');
-                            }
-                            
-                            // Update status indicator
-                            const statusIndicator = card.querySelector('.status-indicator');
-                            if (statusIndicator) {
-                                statusIndicator.className = isInstalled ? 'status-indicator status-installed' : 'status-indicator status-not-installed';
-                                statusIndicator.setAttribute('id', `status-indicator-${serviceName}`);
-                                statusIndicator.setAttribute('data-bs-toggle', 'tooltip');
-                                statusIndicator.setAttribute('data-bs-placement', 'top');
-                                statusIndicator.setAttribute('title', isInstalled ? 'Service is installed and deployed in the cluster' : 'Service is not installed in the cluster');
-                                // Re-initialize tooltip
-                                const existingTooltip = bootstrap.Tooltip.getInstance(statusIndicator);
-                                if (existingTooltip) {
-                                    existingTooltip.dispose();
-                                }
-                                new bootstrap.Tooltip(statusIndicator);
-                            }
-                            
-                            // Update badge
-                            const badge = card.querySelector('.badge');
-                            if (badge) {
-                                badge.textContent = isInstalled ? 'Installed' : 'Not Installed';
-                                badge.className = isInstalled ? 'badge bg-success' : 'badge bg-secondary';
-                                badge.setAttribute('id', `status-badge-${serviceName}`);
-                            }
-                        });
-                    })
-                    .catch(err => {
-                        console.error('Failed to refresh status:', err);
-                    });
-            });
-        }
 
         const btnUp = document.getElementById('btn-up');
         const btnUpdate = document.getElementById('btn-update');
@@ -302,41 +249,101 @@
         }
 
         // Instance selector functionality
-        const instanceSelector = document.getElementById('instance-selector');
-        if (instanceSelector) {
+        const instanceSelectorDropdown = document.getElementById('instance-selector-dropdown');
+        const instanceSelectorMenu = document.getElementById('instance-selector-menu');
+        const instanceSelectorLabel = document.getElementById('instance-selector-label');
+        const instanceSelectorHidden = document.getElementById('instance-selector');
+        
+        if (instanceSelectorDropdown && instanceSelectorMenu && instanceSelectorLabel && instanceSelectorHidden) {
+            // Function to populate dropdown menu
+            function populateDropdown(instances) {
+                // Ensure instances is an array
+                if (!Array.isArray(instances)) {
+                    instances = ['default'];
+                }
+                
+                // If no instances, ensure at least 'default' exists
+                if (instances.length === 0) {
+                    instances = ['default'];
+                }
+                
+                // Clear existing menu items
+                instanceSelectorMenu.innerHTML = '';
+                
+                // Add all instances as menu items
+                instances.forEach(instance => {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.className = 'dropdown-item custom-dropdown-item';
+                    a.href = '#';
+                    a.dataset.value = instance;
+                    a.textContent = instance;
+                    li.appendChild(a);
+                    instanceSelectorMenu.appendChild(li);
+                });
+                
+                // Set selected value from URL query parameter
+                const urlParams = new URLSearchParams(window.location.search);
+                const instanceParam = urlParams.get('instance') || 'default';
+                instanceSelectorHidden.value = instanceParam;
+                instanceSelectorLabel.textContent = instanceParam;
+                
+                // Mark the selected item as active
+                instanceSelectorMenu.querySelectorAll('.custom-dropdown-item').forEach(item => {
+                    item.classList.remove('active');
+                    if (item.dataset.value === instanceParam) {
+                        item.classList.add('active');
+                    }
+                });
+                
+                // Handle dropdown item clicks
+                instanceSelectorMenu.querySelectorAll('.custom-dropdown-item').forEach(item => {
+                    // Remove existing listeners to avoid duplicates
+                    const newItem = item.cloneNode(true);
+                    item.parentNode.replaceChild(newItem, item);
+                    
+                    newItem.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const value = this.dataset.value;
+                        const text = this.textContent.trim();
+                        
+                        instanceSelectorHidden.value = value;
+                        instanceSelectorLabel.textContent = text;
+                        
+                        // Update active state
+                        instanceSelectorMenu.querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.remove('active'));
+                        this.classList.add('active');
+                        
+                        // Update URL and reload
+                        const url = new URL(window.location);
+                        if (value === 'default') {
+                            url.searchParams.delete('instance');
+                        } else {
+                            url.searchParams.set('instance', value);
+                        }
+                        window.location.href = url.toString();
+                    });
+                });
+            }
+            
             // Load instances on page load
             fetch('/api/parameters/instances')
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) {
+                        // If API fails, use default instance
+                        console.warn('Failed to load instances, using default:', res.status, res.statusText);
+                        return ['default'];
+                    }
+                    return res.json();
+                })
                 .then(instances => {
-                    // Clear existing options except default
-                    instanceSelector.innerHTML = '';
-                    instances.forEach(instance => {
-                        const option = document.createElement('option');
-                        option.value = instance;
-                        option.textContent = instance;
-                        instanceSelector.appendChild(option);
-                    });
-                    
-                    // Set selected value from URL query parameter
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const instanceParam = urlParams.get('instance') || 'default';
-                    instanceSelector.value = instanceParam;
+                    populateDropdown(instances);
                 })
                 .catch(err => {
                     console.error('Failed to load instances:', err);
+                    // On error, ensure at least default is available
+                    populateDropdown(['default']);
                 });
-            
-            // Handle instance selection change
-            instanceSelector.addEventListener('change', function() {
-                const selectedInstance = this.value;
-                const url = new URL(window.location);
-                if (selectedInstance === 'default') {
-                    url.searchParams.delete('instance');
-                } else {
-                    url.searchParams.set('instance', selectedInstance);
-                }
-                window.location.href = url.toString();
-            });
         }
     </script>
 </body>
