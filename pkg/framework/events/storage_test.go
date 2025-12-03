@@ -8,7 +8,7 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/database"
 )
 
-func setupTestEventDB(t *testing.T) (*database.DB, *Storage) {
+func setupTestEventDB(t *testing.T) (*database.DB, EventStorage) {
 	db, err := database.NewTestDB(t)
 	if err != nil {
 		t.Fatalf("failed to create test DB: %v", err)
@@ -18,7 +18,7 @@ func setupTestEventDB(t *testing.T) (*database.DB, *Storage) {
 	return db, storage
 }
 
-func createTestEvents(t *testing.T, storage *Storage, n int) {
+func createTestEvents(t *testing.T, storage EventStorage, n int) {
 	now := time.Now()
 	for i := 0; i < n; i++ {
 		event := Event{

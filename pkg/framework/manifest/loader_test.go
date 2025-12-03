@@ -450,7 +450,7 @@ metadata:
 		rootPath: "testdata",
 	}
 	
-	rendered, err := RenderTemplate([]byte(conditionalTemplate), "test", spec, fileSystem, nil)
+	rendered, err := RenderTemplate(context.Background(), []byte(conditionalTemplate), "test", spec, fileSystem, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}

@@ -12,11 +12,8 @@ import (
 func (h *Handler) ListParameterInstances(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
-	// Detect namespace from manifests
-	detectedNamespace := h.getDetectedNamespace()
-	if detectedNamespace == "" {
-		detectedNamespace = "default"
-	}
+	// Get namespace (instance not needed for listing)
+	detectedNamespace, _ := h.getNamespaceAndInstance(r)
 	
 	// List all instances
 	instances, err := h.parameterClient.List(ctx, detectedNamespace)
@@ -67,11 +64,8 @@ func (h *Handler) ListParameterInstances(w http.ResponseWriter, r *http.Request)
 func (h *Handler) CreateParameterInstance(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
-	// Detect namespace from manifests
-	detectedNamespace := h.getDetectedNamespace()
-	if detectedNamespace == "" {
-		detectedNamespace = "default"
-	}
+	// Get namespace (instance not needed for listing)
+	detectedNamespace, _ := h.getNamespaceAndInstance(r)
 	
 	// List existing instances to find next available name
 	existingInstances, err := h.parameterClient.List(ctx, detectedNamespace)

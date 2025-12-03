@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 
 	apperrors "github.com/garunski/conductor-framework/pkg/framework/errors"
@@ -64,10 +65,16 @@ type k8sEnvVar struct {
 	ValueFrom map[string]interface{} `yaml:"valueFrom"`
 }
 
-func extractServices(manifests map[string][]byte) []serviceInfo {
+func extractServices(ctx context.Context, manifests map[string][]byte) []serviceInfo {
 	services := make([]serviceInfo, 0)
 
 	for _, yamlData := range manifests {
+		// Check for context cancellation during iteration
+		select {
+		case <-ctx.Done():
+			return services
+		default:
+		}
 		var obj k8sObject
 		if err := yaml.Unmarshal(yamlData, &obj); err != nil {
 			continue
@@ -109,8 +116,14 @@ func extractServices(manifests map[string][]byte) []serviceInfo {
 	return services
 }
 
-func extractServiceManifest(manifests map[string][]byte, namespace, name string) ([]byte, bool) {
+func extractServiceManifest(ctx context.Context, manifests map[string][]byte, namespace, name string) ([]byte, bool) {
 	for _, yamlData := range manifests {
+		// Check for context cancellation during iteration
+		select {
+		case <-ctx.Done():
+			return nil, false
+		default:
+		}
 		var obj k8sObject
 		if err := yaml.Unmarshal(yamlData, &obj); err != nil {
 			continue
@@ -136,20 +149,26 @@ func extractServiceManifest(manifests map[string][]byte, namespace, name string)
 	return nil, false
 }
 
-func extractServiceSelector(serviceManifest []byte) (map[string]string, error) {
+func extractServiceSelector(ctx context.Context, serviceManifest []byte) (map[string]string, error) {
+	// Check for context cancellation
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
 	var serviceObj k8sObject
 	if err := yaml.Unmarshal(serviceManifest, &serviceObj); err != nil {
-		return nil, fmt.Errorf("%w: failed to unmarshal service manifest: %w", apperrors.ErrInvalidYAML, err)
+		return nil, apperrors.WrapInvalidYAML(err, "failed to unmarshal service manifest")
 	}
 
 	selectorRaw, ok := serviceObj.Spec["selector"]
 	if !ok {
-		return nil, fmt.Errorf("%w: service spec missing selector", apperrors.ErrInvalid)
+		return nil, apperrors.WrapInvalid(nil, "service spec missing selector")
 	}
 
 	selector, ok := selectorRaw.(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("%w: service selector is not a map", apperrors.ErrInvalid)
+		return nil, apperrors.WrapInvalid(nil, "service selector is not a map")
 	}
 
 	result := make(map[string]string)
@@ -162,8 +181,14 @@ func extractServiceSelector(serviceManifest []byte) (map[string]string, error) {
 	return result, nil
 }
 
-func findMatchingDeployment(manifests map[string][]byte, namespace string, selector map[string]string) []byte {
+func findMatchingDeployment(ctx context.Context, manifests map[string][]byte, namespace string, selector map[string]string) []byte {
 	for _, yamlData := range manifests {
+		// Check for context cancellation during iteration
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
 		var obj k8sObject
 		if err := yaml.Unmarshal(yamlData, &obj); err != nil {
 			continue
@@ -203,7 +228,13 @@ func findMatchingDeployment(manifests map[string][]byte, namespace string, selec
 	return nil
 }
 
-func extractEnvVars(deploymentManifest []byte) []EnvVar {
+func extractEnvVars(ctx context.Context, deploymentManifest []byte) []EnvVar {
+	// Check for context cancellation
+	select {
+	case <-ctx.Done():
+		return nil
+	default:
+	}
 	var deploymentObj k8sObject
 	if err := yaml.Unmarshal(deploymentManifest, &deploymentObj); err != nil {
 		return nil

@@ -10,7 +10,7 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/events"
 )
 
-func (r *Reconciler) ReconcileKey(ctx context.Context, key string) error {
+func (r *reconcilerImpl) ReconcileKey(ctx context.Context, key string) error {
 	yamlData, ok := r.store.Get(key)
 	if !ok {
 
@@ -53,13 +53,13 @@ func (r *Reconciler) ReconcileKey(ctx context.Context, key string) error {
 	return nil
 }
 
-func (r *Reconciler) DeployAll(ctx context.Context) error {
+func (r *reconcilerImpl) DeployAll(ctx context.Context) error {
 	r.logger.Info("Deploying all manifests")
 	r.reconcileAll(ctx)
 	return nil
 }
 
-func (r *Reconciler) DeleteAll(ctx context.Context) error {
+func (r *reconcilerImpl) DeleteAll(ctx context.Context) error {
 	r.logger.Info("Deleting all managed resources")
 
 	manifests := r.store.List()
@@ -104,7 +104,7 @@ func (r *Reconciler) DeleteAll(ctx context.Context) error {
 	return nil
 }
 
-func (r *Reconciler) UpdateAll(ctx context.Context) error {
+func (r *reconcilerImpl) UpdateAll(ctx context.Context) error {
 	r.logger.Info("Updating all manifests")
 	r.reconcileAll(ctx)
 	return nil

@@ -11,21 +11,21 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/index"
 )
 
-type ManifestStore struct {
+type manifestStoreImpl struct {
 	db     *database.DB
 	index  *index.ManifestIndex
 	logger logr.Logger
 }
 
-func NewManifestStore(db *database.DB, idx *index.ManifestIndex, logger logr.Logger) *ManifestStore {
-	return &ManifestStore{
+func NewManifestStore(db *database.DB, idx *index.ManifestIndex, logger logr.Logger) ManifestStore {
+	return &manifestStoreImpl{
 		db:     db,
 		index:  idx,
 		logger: logger,
 	}
 }
 
-func (s *ManifestStore) Create(key string, value []byte) error {
+func (s *manifestStoreImpl) Create(key string, value []byte) error {
 	if err := s.db.Set(key, value); err != nil {
 		return fmt.Errorf("db set: %w", err)
 	}
@@ -33,7 +33,7 @@ func (s *ManifestStore) Create(key string, value []byte) error {
 	return nil
 }
 
-func (s *ManifestStore) Update(key string, value []byte) error {
+func (s *manifestStoreImpl) Update(key string, value []byte) error {
 
 	if _, exists := s.index.Get(key); !exists {
 		return fmt.Errorf("%w: manifest not found: %s", apperrors.ErrNotFound, key)
@@ -46,7 +46,7 @@ func (s *ManifestStore) Update(key string, value []byte) error {
 	return nil
 }
 
-func (s *ManifestStore) Delete(key string) error {
+func (s *manifestStoreImpl) Delete(key string) error {
 
 	if _, exists := s.index.Get(key); !exists {
 		return fmt.Errorf("%w: manifest not found: %s", apperrors.ErrNotFound, key)
@@ -65,11 +65,11 @@ func (s *ManifestStore) Delete(key string) error {
 	return nil
 }
 
-func (s *ManifestStore) Get(key string) ([]byte, bool) {
+func (s *manifestStoreImpl) Get(key string) ([]byte, bool) {
 	return s.index.Get(key)
 }
 
-func (s *ManifestStore) List() map[string][]byte {
+func (s *manifestStoreImpl) List() map[string][]byte {
 	return s.index.List()
 }
 

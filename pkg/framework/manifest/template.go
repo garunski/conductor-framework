@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"path/filepath"
@@ -128,30 +129,44 @@ func buildTemplateFuncMap(ctx *TemplateContext, customFuncs template.FuncMap) te
 
 // RenderTemplate renders a manifest YAML template with the given spec and filesystem
 // If customFuncs is provided, it will be merged with built-in and Sprig functions
-func RenderTemplate(manifestBytes []byte, serviceName string, spec map[string]interface{}, files *FileSystem, customFuncs template.FuncMap) ([]byte, error) {
+// Context is used for cancellation and timeout handling during template rendering
+func RenderTemplate(ctx context.Context, manifestBytes []byte, serviceName string, spec map[string]interface{}, files *FileSystem, customFuncs template.FuncMap) ([]byte, error) {
+	// Check for context cancellation before starting
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	// Ensure spec is not nil
 	if spec == nil {
 		spec = make(map[string]interface{})
 	}
 
 	// Build template context
-	ctx := &TemplateContext{
+	templateCtx := &TemplateContext{
 		Spec:  spec,
 		Files: files,
 	}
 
 	// Build complete function map
-	funcMap := buildTemplateFuncMap(ctx, customFuncs)
+	funcMap := buildTemplateFuncMap(templateCtx, customFuncs)
 
 	// Create template with merged functions
 	tmpl, err := template.New("manifest").Funcs(funcMap).Parse(string(manifestBytes))
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse template: %w", err)
 	}
 
+	// Check for context cancellation before execution
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, ctx); err != nil {
+	if err := tmpl.Execute(&buf, templateCtx); err != nil {
 		return nil, fmt.Errorf("failed to execute template: %w", err)
 	}
 

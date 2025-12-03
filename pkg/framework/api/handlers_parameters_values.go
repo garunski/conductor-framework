@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/garunski/conductor-framework/pkg/framework/manifest"
 )
@@ -12,14 +11,8 @@ import (
 func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
-	// Get instance name from query parameter
-	instanceName := getInstanceName(r)
-	
-	// Detect namespace from manifests
-	detectedNamespace := h.getDetectedNamespace()
-	if detectedNamespace == "" {
-		detectedNamespace = "default"
-	}
+	// Get namespace and instance name
+	detectedNamespace, instanceName := h.getNamespaceAndInstance(r)
 
 	// Get all services using the same logic as the template
 	services := h.getServiceNames()
@@ -34,14 +27,8 @@ func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 		// Get merged/default values - always provide defaults even if cluster is unavailable
 		var merged map[string]interface{}
 		
-		// Try to get spec, but don't fail if cluster is unavailable
-		spec, err := h.parameterClient.GetSpec(ctx, instanceName, detectedNamespace)
-		if err != nil || spec == nil || len(spec) == 0 {
-			// Fallback to default namespace
-			if detectedNamespace != "default" {
-				spec, err = h.parameterClient.GetSpec(ctx, instanceName, "default")
-			}
-		}
+		// Try to get spec with fallback, but don't fail if cluster is unavailable
+		spec, err := h.getSpecWithFallback(ctx, instanceName, detectedNamespace)
 		if err == nil && spec != nil {
 			// Merge global and service-specific parameters
 			merged = make(map[string]interface{})
@@ -93,7 +80,7 @@ func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 		// Silently ignore errors if cluster is not available
 		if clientset != nil {
 			// Use a short timeout context to avoid hanging if cluster is unavailable
-			deployCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			deployCtx, cancel := context.WithTimeout(ctx, DefaultHealthCheckTimeout)
 			deployed := getDeployedValues(deployCtx, clientset, serviceName, detectedNamespace, allManifests)
 			cancel()
 			if deployed != nil {

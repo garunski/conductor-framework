@@ -7,29 +7,30 @@ import (
 
 func TestReconciler_ManagedKeys(t *testing.T) {
 	rec := setupTestReconcilerForTests(t)
+	impl := getReconcilerImpl(t, rec)
 	ctx := context.Background()
 
 	// Test isManaged
-	if rec.isManaged("test/key") {
+	if impl.isManaged("test/key") {
 		t.Error("isManaged() should return false for unmanaged key")
 	}
 
 	// Test setManaged
-	rec.setManaged("test/key")
-	if !rec.isManaged("test/key") {
+	impl.setManaged("test/key")
+	if !impl.isManaged("test/key") {
 		t.Error("isManaged() should return true after setManaged")
 	}
 
 	// Test removeManaged
-	rec.removeManaged("test/key")
-	if rec.isManaged("test/key") {
+	impl.removeManaged("test/key")
+	if impl.isManaged("test/key") {
 		t.Error("isManaged() should return false after removeManaged")
 	}
 
 	// Test getAllManagedKeys
-	rec.setManaged("key1")
-	rec.setManaged("key2")
-	keys := rec.getAllManagedKeys(ctx)
+	impl.setManaged("key1")
+	impl.setManaged("key2")
+	keys := impl.getAllManagedKeys(ctx)
 	if len(keys) != 2 {
 		t.Errorf("getAllManagedKeys() returned %d keys, want 2", len(keys))
 	}
@@ -42,8 +43,8 @@ func TestReconciler_ManagedKeys(t *testing.T) {
 		"key3": true,
 		"key4": true,
 	}
-	rec.setAllManagedKeys(ctx, newKeys)
-	keys = rec.getAllManagedKeys(ctx)
+	impl.setAllManagedKeys(ctx, newKeys)
+	keys = impl.getAllManagedKeys(ctx)
 	if len(keys) != 2 {
 		t.Errorf("setAllManagedKeys() did not replace keys, got %d keys", len(keys))
 	}
@@ -52,8 +53,8 @@ func TestReconciler_ManagedKeys(t *testing.T) {
 	}
 
 	// Test clearManagedKeys
-	rec.clearManagedKeys(ctx)
-	keys = rec.getAllManagedKeys(ctx)
+	impl.clearManagedKeys(ctx)
+	keys = impl.getAllManagedKeys(ctx)
 	if len(keys) != 0 {
 		t.Errorf("clearManagedKeys() did not clear keys, got %d keys", len(keys))
 	}

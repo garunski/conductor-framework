@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -167,7 +168,7 @@ metadata:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := extractServices(tt.manifests)
+			got := extractServices(context.Background(), tt.manifests)
 			if len(got) != tt.wantCount {
 				t.Errorf("extractServices() returned %d services, want %d", len(got), tt.wantCount)
 			}
@@ -229,7 +230,7 @@ spec:
   - port: 8080`),
 	}
 
-	manifest, found := extractServiceManifest(manifests, "default", "test")
+	manifest, found := extractServiceManifest(context.Background(), manifests, "default", "test")
 	if !found {
 		t.Error("extractServiceManifest() returned found=false")
 	}
@@ -241,7 +242,7 @@ spec:
 	}
 
 	// Test with non-existent service
-	_, found = extractServiceManifest(manifests, "default", "nonexistent")
+	_, found = extractServiceManifest(context.Background(), manifests, "default", "nonexistent")
 	if found {
 		t.Error("extractServiceManifest() should return found=false for nonexistent service")
 	}
@@ -256,7 +257,7 @@ spec:
   selector:
     app: test-app`)
 
-	selector, err := extractServiceSelector(manifest)
+	selector, err := extractServiceSelector(context.Background(), manifest)
 	if err != nil {
 		t.Fatalf("extractServiceSelector() error = %v", err)
 	}
@@ -285,13 +286,13 @@ spec:
 	selector := map[string]string{"app": "test-app"}
 
 	// Should find matching deployment
-	deployment := findMatchingDeployment(manifests, "default", selector)
+	deployment := findMatchingDeployment(context.Background(), manifests, "default", selector)
 	if deployment == nil {
 		t.Error("findMatchingDeployment() should return deployment when match found")
 	}
 
 	// Should return nil when no match
-	deployment = findMatchingDeployment(manifests, "default", map[string]string{"app": "nonexistent"})
+	deployment = findMatchingDeployment(context.Background(), manifests, "default", map[string]string{"app": "nonexistent"})
 	if deployment != nil {
 		t.Error("findMatchingDeployment() should return nil when no deployment matches")
 	}
@@ -318,7 +319,7 @@ spec:
               name: secret
               key: key`)
 
-	envVars := extractEnvVars(deploymentManifest)
+	envVars := extractEnvVars(context.Background(), deploymentManifest)
 	if len(envVars) != 3 {
 		t.Errorf("extractEnvVars() returned %d env vars, want 3", len(envVars))
 	}

@@ -31,7 +31,11 @@ func TestReconciler_applyObject_Unstructured(t *testing.T) {
 	}
 
 	key := "default/ConfigMap/test-configmap"
-	err := rec.applyObject(ctx, obj, key)
+	impl, ok := rec.(*reconcilerImpl)
+	if !ok {
+		t.Fatal("rec is not *reconcilerImpl")
+	}
+	err := impl.applyObject(ctx, obj, key)
 	// Fake client may not fully support Apply, so we accept either success or a specific error
 	// The important thing is that the function executed and handled the operation
 	if err != nil {
@@ -60,7 +64,11 @@ func TestReconciler_applyObject_TypedObject(t *testing.T) {
 	}
 
 	key := "default/Service/test-service"
-	err := rec.applyObject(ctx, obj, key)
+	impl, ok := rec.(*reconcilerImpl)
+	if !ok {
+		t.Fatal("rec is not *reconcilerImpl")
+	}
+	err := impl.applyObject(ctx, obj, key)
 	// Fake client may not fully support Apply, but we verify the conversion logic executed
 	if err != nil {
 		t.Logf("applyObject() returned error (may be due to fake client limitations): %v", err)
@@ -86,7 +94,11 @@ func TestReconciler_applyObject_ClusterScoped(t *testing.T) {
 	}
 
 	key := "/Namespace/test-namespace"
-	err := rec.applyObject(ctx, obj, key)
+	impl, ok := rec.(*reconcilerImpl)
+	if !ok {
+		t.Fatal("rec is not *reconcilerImpl")
+	}
+	err := impl.applyObject(ctx, obj, key)
 	// Fake client may not fully support Apply, but we verify cluster-scoped logic
 	if err != nil {
 		t.Logf("applyObject() returned error (may be due to fake client limitations): %v", err)
@@ -109,7 +121,11 @@ func TestReconciler_applyObject_MissingKind(t *testing.T) {
 	}
 
 	key := "default/Resource/test-resource"
-	err := rec.applyObject(ctx, obj, key)
+	impl, ok := rec.(*reconcilerImpl)
+	if !ok {
+		t.Fatal("rec is not *reconcilerImpl")
+	}
+	err := impl.applyObject(ctx, obj, key)
 	if err == nil {
 		t.Error("applyObject() expected error for missing kind, got nil")
 	}

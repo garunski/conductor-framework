@@ -21,12 +21,13 @@ metadata:
   name: deploy-all-cm
   namespace: default`)
 
-	err := rec.store.Create("default/ConfigMap/deploy-all-cm", manifest)
+	impl := getReconcilerImpl(t, rec)
+	err := impl.store.Create("default/ConfigMap/deploy-all-cm", manifest)
 	if err != nil {
 		t.Fatalf("Failed to create manifest: %v", err)
 	}
 
-	err = rec.DeployAll(ctx)
+	err = impl.DeployAll(ctx)
 	if err != nil {
 		t.Fatalf("DeployAll() error = %v", err)
 	}
@@ -63,17 +64,18 @@ func TestReconciler_DeleteAll(t *testing.T) {
 	}
 
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
-	_, err := rec.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj1, metav1.CreateOptions{})
+	impl := getReconcilerImpl(t, rec)
+	_, err := impl.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create resource: %v", err)
 	}
-	_, err = rec.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj2, metav1.CreateOptions{})
+	_, err = impl.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create resource: %v", err)
 	}
 
-	rec.setManaged("default/ConfigMap/delete1")
-	rec.setManaged("default/ConfigMap/delete2")
+	impl.setManaged("default/ConfigMap/delete1")
+	impl.setManaged("default/ConfigMap/delete2")
 
 	err = rec.DeleteAll(ctx)
 	if err != nil {
@@ -81,7 +83,7 @@ func TestReconciler_DeleteAll(t *testing.T) {
 	}
 
 	// Verify managed keys were cleared
-	keys := rec.getAllManagedKeys(ctx)
+	keys := impl.getAllManagedKeys(ctx)
 	if len(keys) != 0 {
 		t.Errorf("DeleteAll() managed keys not cleared, got %d keys", len(keys))
 	}
@@ -98,12 +100,13 @@ metadata:
   name: update-all-cm
   namespace: default`)
 
-	err := rec.store.Create("default/ConfigMap/update-all-cm", manifest)
+	impl := getReconcilerImpl(t, rec)
+	err := impl.store.Create("default/ConfigMap/update-all-cm", manifest)
 	if err != nil {
 		t.Fatalf("Failed to create manifest: %v", err)
 	}
 
-	err = rec.UpdateAll(ctx)
+	err = impl.UpdateAll(ctx)
 	if err != nil {
 		t.Fatalf("UpdateAll() error = %v", err)
 	}
@@ -190,17 +193,18 @@ func TestReconciler_DeleteManifests(t *testing.T) {
 	}
 
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
-	_, err := rec.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj1, metav1.CreateOptions{})
+	impl := getReconcilerImpl(t, rec)
+	_, err := impl.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj1, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create resource: %v", err)
 	}
-	_, err = rec.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj2, metav1.CreateOptions{})
+	_, err = impl.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj2, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create resource: %v", err)
 	}
 
-	rec.setManaged("default/ConfigMap/delete1")
-	rec.setManaged("default/ConfigMap/delete2")
+	impl.setManaged("default/ConfigMap/delete1")
+	impl.setManaged("default/ConfigMap/delete2")
 
 	// Now delete them via DeleteManifests
 	manifests := map[string][]byte{
@@ -222,10 +226,10 @@ metadata:
 	}
 
 	// Verify they're no longer managed
-	if rec.isManaged("default/ConfigMap/delete1") {
+	if impl.isManaged("default/ConfigMap/delete1") {
 		t.Error("DeleteManifests() did not remove managed status for delete1")
 	}
-	if rec.isManaged("default/ConfigMap/delete2") {
+	if impl.isManaged("default/ConfigMap/delete2") {
 		t.Error("DeleteManifests() did not remove managed status for delete2")
 	}
 }
@@ -242,7 +246,8 @@ metadata:
   name: periodic-cm
   namespace: default`)
 
-	err := rec.store.Create("default/ConfigMap/periodic-cm", manifest)
+	impl := getReconcilerImpl(t, rec)
+	err := impl.store.Create("default/ConfigMap/periodic-cm", manifest)
 	if err != nil {
 		t.Fatalf("Failed to create manifest: %v", err)
 	}
@@ -250,7 +255,8 @@ metadata:
 	// Start periodic reconciliation with short interval
 	done := make(chan bool)
 	go func() {
-		rec.StartPeriodicReconciliation(ctx, 50*time.Millisecond)
+		impl := getReconcilerImpl(t, rec)
+		impl.StartPeriodicReconciliation(ctx, 50*time.Millisecond)
 		done <- true
 	}()
 

@@ -46,8 +46,11 @@ func TestNewReconciler(t *testing.T) {
 		t.Fatal("NewReconciler() returned nil")
 	}
 
-	if rec.appName != "test-app" {
-		t.Errorf("NewReconciler() appName = %v, want test-app", rec.appName)
+	// Type assert to access internal field for testing
+	if impl, ok := rec.(*reconcilerImpl); ok {
+		if impl.appName != "test-app" {
+			t.Errorf("NewReconciler() appName = %v, want test-app", impl.appName)
+		}
 	}
 }
 
@@ -74,8 +77,11 @@ func TestNewReconciler_DefaultAppName(t *testing.T) {
 		t.Fatalf("NewReconciler() error = %v", err)
 	}
 
-	if rec.appName != "conductor" {
-		t.Errorf("NewReconciler() appName = %v, want conductor", rec.appName)
+	// Type assert to access internal field for testing
+	if impl, ok := rec.(*reconcilerImpl); ok {
+		if impl.appName != "conductor" {
+			t.Errorf("NewReconciler() appName = %v, want conductor", impl.appName)
+		}
 	}
 }
 

@@ -35,13 +35,13 @@ func NewTestIndex() *index.ManifestIndex {
 }
 
 // NewTestEventStore creates a test event store
-func NewTestEventStore(t *testing.T) *events.Storage {
+func NewTestEventStore(t *testing.T) events.EventStorage {
 	db := NewTestDB(t)
 	return events.NewStorage(db, NewTestLogger())
 }
 
 // NewTestManifestStore creates a test manifest store
-func NewTestManifestStore(t *testing.T) *store.ManifestStore {
+func NewTestManifestStore(t *testing.T) store.ManifestStore {
 	db := NewTestDB(t)
 	idx := NewTestIndex()
 	return store.NewManifestStore(db, idx, NewTestLogger())

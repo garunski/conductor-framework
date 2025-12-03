@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -10,13 +11,13 @@ func TestRenderTemplate_UUIDv5_Deterministic(t *testing.T) {
 	spec := make(map[string]interface{})
 
 	// First call
-	result1, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	result1, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
 
 	// Second call with same inputs
-	result2, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	result2, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -41,12 +42,12 @@ func TestRenderTemplate_UUIDv5_DifferentInputs(t *testing.T) {
 	manifest1 := []byte("{{ uuidv5 \"6ba7b810-9dad-11d1-80b4-00c04fd430c8\" \"name1\" }}")
 	manifest2 := []byte("{{ uuidv5 \"6ba7b810-9dad-11d1-80b4-00c04fd430c8\" \"name2\" }}")
 
-	result1, err := RenderTemplate(manifest1, "test", spec, nil, nil)
+	result1, err := RenderTemplate(context.Background(), manifest1, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
 
-	result2, err := RenderTemplate(manifest2, "test", spec, nil, nil)
+	result2, err := RenderTemplate(context.Background(), manifest2, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -63,7 +64,7 @@ func TestRenderTemplate_UUIDv5_InvalidNamespace(t *testing.T) {
 	manifestBytes := []byte("{{ uuidv5 \"invalid-uuid\" \"test-name\" }}")
 	spec := make(map[string]interface{})
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() should not error on invalid namespace UUID: %v", err)
 	}
@@ -79,7 +80,7 @@ func TestRenderTemplate_UUIDv5_EmptyNamespace(t *testing.T) {
 	manifestBytes := []byte("{{ uuidv5 \"\" \"test-name\" }}")
 	spec := make(map[string]interface{})
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}

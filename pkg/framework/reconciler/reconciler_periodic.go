@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func (r *Reconciler) StartPeriodicReconciliation(ctx context.Context, interval time.Duration) {
+func (r *reconcilerImpl) StartPeriodicReconciliation(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -24,7 +24,7 @@ func (r *Reconciler) StartPeriodicReconciliation(ctx context.Context, interval t
 
 // WaitForFirstReconciliation waits for the first reconciliation to complete.
 // This is useful for testing to ensure the reconciler is ready.
-func (r *Reconciler) WaitForFirstReconciliation(ctx context.Context) error {
+func (r *reconcilerImpl) WaitForFirstReconciliation(ctx context.Context) error {
 	select {
 	case <-r.firstReconcileCh:
 		return nil

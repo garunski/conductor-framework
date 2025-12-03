@@ -17,7 +17,7 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/store"
 )
 
-func setupTestReconcilerForTests(t *testing.T) *Reconciler {
+func setupTestReconcilerForTests(t *testing.T) Reconciler {
 	logger := logr.Discard()
 	clientset := kubefake.NewSimpleClientset()
 	scheme := runtime.NewScheme()
@@ -40,4 +40,13 @@ func setupTestReconcilerForTests(t *testing.T) *Reconciler {
 		t.Fatalf("failed to create reconciler: %v", err)
 	}
 	return rec
+}
+
+// getReconcilerImpl is a test helper to access the concrete implementation for testing internal methods
+func getReconcilerImpl(t *testing.T, rec Reconciler) *reconcilerImpl {
+	impl, ok := rec.(*reconcilerImpl)
+	if !ok {
+		t.Fatalf("rec is not *reconcilerImpl, got %T", rec)
+	}
+	return impl
 }

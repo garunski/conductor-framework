@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -28,7 +29,7 @@ func TestRenderTemplate_SprigStringFunctions(t *testing.T) {
 			manifestBytes := []byte(tt.template)
 			spec := make(map[string]interface{})
 
-			result, err := RenderTemplate(manifestBytes, "redis", spec, nil, nil)
+			result, err := RenderTemplate(context.Background(), manifestBytes, "redis", spec, nil, nil)
 			if err != nil {
 				t.Fatalf("RenderTemplate() error = %v", err)
 			}

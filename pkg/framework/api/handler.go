@@ -20,18 +20,18 @@ import (
 type Handler struct {
 	logger          logr.Logger
 	reconcileCh     chan string
-	reconciler      *reconciler.Reconciler
+	reconciler      reconciler.Reconciler
 	appName         string
 	version         string
 	templates       *template.Template
-	store           *store.ManifestStore
-	eventStore      *events.Storage
+	store           store.ManifestStore
+	eventStore      events.EventStorage
 	parameterClient *crd.Client
 	manifestFS      embed.FS
 	manifestRoot    string
 }
 
-func NewHandler(store *store.ManifestStore, eventStore *events.Storage, logger logr.Logger, reconcileCh chan string, rec *reconciler.Reconciler, appName, version string, parameterClient *crd.Client, customTemplateFS *embed.FS, manifestFS embed.FS, manifestRoot string) (*Handler, error) {
+func NewHandler(store store.ManifestStore, eventStore events.EventStorage, logger logr.Logger, reconcileCh chan string, rec reconciler.Reconciler, appName, version string, parameterClient *crd.Client, customTemplateFS *embed.FS, manifestFS embed.FS, manifestRoot string) (*Handler, error) {
 	tmpl, err := loadTemplates(customTemplateFS)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load templates: %w", err)

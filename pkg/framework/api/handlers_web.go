@@ -40,61 +40,30 @@ func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	
-	// Get instance name from query parameter
-	instanceName := getInstanceName(r)
+	// Get namespace and instance name
+	detectedNamespace, instanceName := h.getNamespaceAndInstance(r)
 	
 	// Get list of services from manifest directories
 	services := h.getServiceNames()
 	
 	// Get installation status for each service
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), DefaultRequestTimeout)
 	defer cancel()
 	
 	manifests := h.store.List()
 	installationStatus := getServiceInstallationStatus(ctx, services, manifests, h.reconciler)
 	
-	// Detect namespace from manifests (try to find the most common namespace)
-	detectedNamespace := detectNamespaceFromManifests(manifests)
-	if detectedNamespace == "" {
-		detectedNamespace = "default"
-	}
-	
-	// Get CRD schema definition (raw OpenAPI schema) for form generation
-	crdSchema, err := h.parameterClient.GetCRDSchema(ctx)
+	// Get CRD schema with fallback
+	specSchema, err := h.getCRDSchemaWithFallback(ctx)
 	if err != nil {
-		h.logger.V(1).Info("failed to get CRD schema, using sample schema for local development", "error", err)
-		// Use sample schema for local development/debugging
-		crdSchema = GetSampleCRDSchema()
+		h.logger.V(1).Info("failed to get CRD schema, using empty schema", "error", err)
+		specSchema = make(map[string]interface{})
 	}
 	
-	// Extract the spec schema from the CRD schema
-	var specSchema map[string]interface{}
-	if properties, ok := crdSchema["properties"].(map[string]interface{}); ok {
-		if spec, ok := properties["spec"].(map[string]interface{}); ok {
-			specSchema = spec
-		}
-	}
-	
-	// If we still don't have a spec schema, use the sample one
-	if specSchema == nil || len(specSchema) == 0 {
-		sampleSchema := GetSampleCRDSchema()
-		if properties, ok := sampleSchema["properties"].(map[string]interface{}); ok {
-			if spec, ok := properties["spec"].(map[string]interface{}); ok {
-				specSchema = spec
-			}
-		}
-	}
-	
-	// Get CRD instance values - try detected namespace first, then fallback to default
-	instanceSpec, err := h.parameterClient.GetSpec(ctx, instanceName, detectedNamespace)
-	if err != nil || instanceSpec == nil || len(instanceSpec) == 0 {
-		// Fallback to default namespace if not found in detected namespace
-		if detectedNamespace != "default" {
-			instanceSpec, err = h.parameterClient.GetSpec(ctx, instanceName, "default")
-		}
-		if err != nil || instanceSpec == nil {
-			instanceSpec = make(map[string]interface{})
-		}
+	// Get CRD instance values with fallback
+	instanceSpec, err := h.getSpecWithFallback(ctx, instanceName, detectedNamespace)
+	if err != nil || instanceSpec == nil {
+		instanceSpec = make(map[string]interface{})
 	}
 	
 	// Ensure services map exists to avoid nil index errors in template
@@ -139,52 +108,23 @@ func (h *Handler) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	
-	// Get instance name from query parameter
-	instanceName := getInstanceName(r)
+	// Get namespace and instance name
+	detectedNamespace, instanceName := h.getNamespaceAndInstance(r)
 	
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), DefaultRequestTimeout)
 	defer cancel()
 	
-	// Detect namespace from manifests
-	manifests := h.store.List()
-	detectedNamespace := detectNamespaceFromManifests(manifests)
-	if detectedNamespace == "" {
-		detectedNamespace = "default"
-	}
-	
-	// Get CRD schema
-	crdSchema, err := h.parameterClient.GetCRDSchema(ctx)
+	// Get CRD schema with fallback
+	specSchema, err := h.getCRDSchemaWithFallback(ctx)
 	if err != nil {
-		h.logger.V(1).Info("failed to get CRD schema, using sample schema", "error", err)
-		crdSchema = GetSampleCRDSchema()
+		h.logger.V(1).Info("failed to get CRD schema, using empty schema", "error", err)
+		specSchema = make(map[string]interface{})
 	}
 	
-	// Extract spec schema
-	var specSchema map[string]interface{}
-	if properties, ok := crdSchema["properties"].(map[string]interface{}); ok {
-		if spec, ok := properties["spec"].(map[string]interface{}); ok {
-			specSchema = spec
-		}
-	}
-	
-	if specSchema == nil || len(specSchema) == 0 {
-		sampleSchema := GetSampleCRDSchema()
-		if properties, ok := sampleSchema["properties"].(map[string]interface{}); ok {
-			if spec, ok := properties["spec"].(map[string]interface{}); ok {
-				specSchema = spec
-			}
-		}
-	}
-	
-	// Get instance values
-	instanceSpec, err := h.parameterClient.GetSpec(ctx, instanceName, detectedNamespace)
-	if err != nil || instanceSpec == nil || len(instanceSpec) == 0 {
-		if detectedNamespace != "default" {
-			instanceSpec, err = h.parameterClient.GetSpec(ctx, instanceName, "default")
-		}
-		if err != nil || instanceSpec == nil {
-			instanceSpec = make(map[string]interface{})
-		}
+	// Get instance values with fallback
+	instanceSpec, err := h.getSpecWithFallback(ctx, instanceName, detectedNamespace)
+	if err != nil || instanceSpec == nil {
+		instanceSpec = make(map[string]interface{})
 	}
 	
 	// Merge schema with instance values

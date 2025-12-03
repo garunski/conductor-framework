@@ -8,6 +8,7 @@ import (
 
 func TestReconciler_ParseYAML(t *testing.T) {
 	rec := setupTestReconcilerForTests(t)
+	impl := getReconcilerImpl(t, rec)
 
 	yamlData := []byte(`apiVersion: v1
 kind: Service
@@ -16,7 +17,7 @@ metadata:
   namespace: default
 spec: {}`)
 
-	obj, err := rec.parseYAML(yamlData, "default/Service/test-service")
+	obj, err := impl.parseYAML(yamlData, "default/Service/test-service")
 	if err != nil {
 		t.Fatalf("parseYAML() error = %v", err)
 	}
@@ -40,9 +41,10 @@ spec: {}`)
 
 func TestReconciler_ParseKey(t *testing.T) {
 	rec := setupTestReconcilerForTests(t)
+	impl := getReconcilerImpl(t, rec)
 
 	key := "default/Service/test-service"
-	obj, err := rec.parseKey(key)
+	obj, err := impl.parseKey(key)
 	if err != nil {
 		t.Fatalf("parseKey() error = %v", err)
 	}
@@ -62,6 +64,7 @@ func TestReconciler_ParseKey(t *testing.T) {
 
 func TestReconciler_ParseKey_InvalidFormat(t *testing.T) {
 	rec := setupTestReconcilerForTests(t)
+	impl := getReconcilerImpl(t, rec)
 
 	tests := []string{
 		"invalid",
@@ -71,7 +74,7 @@ func TestReconciler_ParseKey_InvalidFormat(t *testing.T) {
 
 	for _, key := range tests {
 		t.Run(key, func(t *testing.T) {
-			_, err := rec.parseKey(key)
+			_, err := impl.parseKey(key)
 			if err == nil {
 				t.Errorf("parseKey(%q) expected error, got nil", key)
 			}

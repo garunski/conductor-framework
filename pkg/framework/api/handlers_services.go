@@ -19,12 +19,12 @@ type serviceInfo struct {
 }
 
 func (h *Handler) ListServices(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), DefaultRequestTimeout)
+	defer cancel()
+	
 	// Use the store which already has embedded manifests loaded at startup
 	manifests := h.store.List()
-	serviceInfos := extractServices(manifests)
-	
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
+	serviceInfos := extractServices(ctx, manifests)
 	
 	services := make([]ServiceInfo, 0, len(serviceInfos))
 	for _, svc := range serviceInfos {
@@ -54,74 +54,68 @@ func (h *Handler) ListServices(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
-	manifests := h.store.List()
-	serviceInfos := extractServices(manifests)
-	statuses := make([]ServiceStatus, 0, len(serviceInfos))
-
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), DefaultRequestTimeout)
 	defer cancel()
+	
+	manifests := h.store.List()
+	serviceInfos := extractServices(ctx, manifests)
+	if len(serviceInfos) == 0 {
+		WriteJSONResponse(w, h.logger, http.StatusOK, StatusResponse{Services: []ServiceStatus{}})
+		return
+	}
 
 	client := &http.Client{
-		Timeout: 2 * time.Second,
+		Timeout: DefaultHealthCheckTimeout,
 	}
 
-	type result struct {
-		status ServiceStatus
+	// Start async health checks for all services
+	type indexedResult struct {
 		index  int
+		status ServiceStatus
 	}
-	resultChan := make(chan result, len(serviceInfos))
-
+	resultChan := make(chan indexedResult, len(serviceInfos))
+	
 	for i, svc := range serviceInfos {
 		go func(idx int, service serviceInfo) {
-			status := checkServiceHealth(ctx, client, service)
-			resultChan <- result{status: status, index: idx}
+			statusChan := checkServiceHealthAsync(ctx, client, service)
+			select {
+			case status := <-statusChan:
+				resultChan <- indexedResult{index: idx, status: status}
+			case <-ctx.Done():
+				resultChan <- indexedResult{
+					index: idx,
+					status: ServiceStatus{
+						Name:        service.Name,
+						Namespace:   service.Namespace,
+						Port:        service.Port,
+						Status:      "unknown",
+						LastChecked: time.Now(),
+					},
+				}
+			}
 		}(i, svc)
 	}
 
-	collected := make(map[int]ServiceStatus)
-	timeout := time.After(5 * time.Second)
-	remaining := len(serviceInfos)
-
-	for remaining > 0 {
-		select {
-		case res := <-resultChan:
-			collected[res.index] = res.status
-			remaining--
-		case <-timeout:
-			timeout = nil
-			for remaining > 0 {
-				select {
-				case res := <-resultChan:
-					collected[res.index] = res.status
-					remaining--
-				default:
-					remaining = 0
-				}
-			}
-		case <-ctx.Done():
-			for remaining > 0 {
-				select {
-				case res := <-resultChan:
-					collected[res.index] = res.status
-					remaining--
-				default:
-					remaining = 0
-				}
-			}
-		}
+	// Collect all results
+	collected := make(map[int]ServiceStatus, len(serviceInfos))
+	for i := 0; i < len(serviceInfos); i++ {
+		result := <-resultChan
+		collected[result.index] = result.status
 	}
 
-	for i := 0; i < len(serviceInfos); i++ {
+	// Build statuses in order
+	statuses := make([]ServiceStatus, len(serviceInfos))
+	for i := range serviceInfos {
 		if status, ok := collected[i]; ok {
-			statuses = append(statuses, status)
+			statuses[i] = status
 		} else {
-			statuses = append(statuses, ServiceStatus{
+			statuses[i] = ServiceStatus{
 				Name:        serviceInfos[i].Name,
 				Namespace:   serviceInfos[i].Namespace,
 				Port:        serviceInfos[i].Port,
 				Status:      "unknown",
 				LastChecked: time.Now(),
-			})
+			}
 		}
 	}
 
@@ -145,38 +139,39 @@ func (h *Handler) ServiceDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(r.Context(), DefaultRequestTimeout)
+	defer cancel()
+	
 	key := fmt.Sprintf("%s/Service/%s", namespace, serviceName)
 	serviceManifest, found := h.store.Get(key)
 	var manifests map[string][]byte
 	if !found {
-
 		manifests = h.store.List()
 		if manifests == nil {
 			WriteError(w, h.logger, fmt.Errorf("%w: service %s/%s", apperrors.ErrNotFound, namespace, serviceName))
 			return
 		}
-		serviceManifest, found = extractServiceManifest(manifests, namespace, serviceName)
+		serviceManifest, found = extractServiceManifest(ctx, manifests, namespace, serviceName)
 		if !found {
 			WriteError(w, h.logger, fmt.Errorf("%w: service %s/%s", apperrors.ErrNotFound, namespace, serviceName))
 			return
 		}
 	} else {
-
 		manifests = h.store.List()
 	}
 
-	selector, err := extractServiceSelector(serviceManifest)
+	selector, err := extractServiceSelector(ctx, serviceManifest)
 	if err != nil {
 		h.logger.Error(err, "failed to extract service selector")
-		WriteError(w, h.logger, fmt.Errorf("%w: invalid service: %w", apperrors.ErrInvalid, err))
+		WriteError(w, h.logger, apperrors.WrapInvalid(err, "invalid service"))
 		return
 	}
 
-	deploymentManifest := findMatchingDeployment(manifests, namespace, selector)
+	deploymentManifest := findMatchingDeployment(ctx, manifests, namespace, selector)
 
 	envVars := []EnvVar{}
 	if deploymentManifest != nil {
-		envVars = extractEnvVars(deploymentManifest)
+		envVars = extractEnvVars(ctx, deploymentManifest)
 	}
 
 	response := ServiceDetailsResponse{

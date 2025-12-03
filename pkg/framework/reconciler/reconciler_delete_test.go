@@ -28,21 +28,22 @@ func TestReconciler_deleteObject_Existing(t *testing.T) {
 	}
 
 	key := "default/ConfigMap/test-configmap"
+	impl := getReconcilerImpl(t, rec)
 	// Use Create instead of Apply for fake client compatibility
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
-	_, err := rec.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj, metav1.CreateOptions{})
+	_, err := impl.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create resource for deletion test: %v", err)
 	}
 
 	// Now delete it
-	err = rec.deleteObject(ctx, obj, key)
+	err = impl.deleteObject(ctx, obj, key)
 	if err != nil {
 		t.Fatalf("deleteObject() error = %v", err)
 	}
 
 	// Verify resource was deleted
-	_, err = rec.dynamicClient.Resource(gvr).Namespace("default").Get(ctx, "test-configmap", metav1.GetOptions{})
+	_, err = impl.dynamicClient.Resource(gvr).Namespace("default").Get(ctx, "test-configmap", metav1.GetOptions{})
 	if err == nil {
 		t.Error("deleteObject() resource still exists after deletion")
 	}
@@ -65,7 +66,8 @@ func TestReconciler_deleteObject_NotFound(t *testing.T) {
 	}
 
 	key := "default/ConfigMap/non-existent"
-	err := rec.deleteObject(ctx, obj, key)
+	impl := getReconcilerImpl(t, rec)
+	err := impl.deleteObject(ctx, obj, key)
 	// Should not error for not found
 	if err != nil {
 		t.Errorf("deleteObject() error = %v, expected nil for not found resource", err)
@@ -87,7 +89,8 @@ func TestReconciler_deleteObject_MissingKind(t *testing.T) {
 	}
 
 	key := "default/Resource/test-resource"
-	err := rec.deleteObject(ctx, obj, key)
+	impl := getReconcilerImpl(t, rec)
+	err := impl.deleteObject(ctx, obj, key)
 	if err == nil {
 		t.Error("deleteObject() expected error for missing kind, got nil")
 	}

@@ -8,6 +8,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 
@@ -82,15 +83,61 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// setupLogger initializes and returns a logger
+func setupLogger() (logr.Logger, error) {
+	zapLog, err := zap.NewDevelopment()
+	if err != nil {
+		var zeroLogger logr.Logger
+		return zeroLogger, fmt.Errorf("failed to create logger: %w", err)
+	}
+	return zapr.NewLogger(zapLog), nil
+}
+
+// setupKubernetesClient attempts to set up a Kubernetes client and parameter getter
+// Returns nil parameterGetter if Kubernetes is unavailable (for fallback behavior)
+func setupKubernetesClient(ctx context.Context, logger logr.Logger, cfg Config) (dynamic.Interface, manifest.ParameterGetter, error) {
+	logger.Info("Setting up Kubernetes client for manifest loading")
+	kubeConfig, err := reconciler.GetKubernetesConfig()
+	if err != nil {
+		logger.Info("Kubernetes config not available, using default parameters for template rendering", "error", err)
+		return nil, nil, nil // Not an error, just fallback
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(kubeConfig)
+	if err != nil {
+		logger.Info("Failed to create dynamic client, using default parameters for template rendering", "error", err)
+		return nil, nil, nil // Not an error, just fallback
+	}
+
+	// Create temporary CRD client for manifest loading
+	parameterClient := crd.NewClient(dynamicClient, logger, cfg.CRDGroup, cfg.CRDVersion, cfg.CRDResource)
+	
+	// Create parameter getter function that returns full spec
+	defaultNamespace := "default"
+	parameterGetter := func(ctx context.Context) (map[string]interface{}, error) {
+		return parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
+	}
+
+	return dynamicClient, parameterGetter, nil
+}
+
+// loadManifests loads embedded manifests with optional parameter templating
+func loadManifests(ctx context.Context, cfg Config, parameterGetter manifest.ParameterGetter) (map[string][]byte, error) {
+	manifests, err := manifest.LoadEmbeddedManifests(cfg.ManifestFS, cfg.ManifestRoot, ctx, parameterGetter, cfg.TemplateFuncs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load embedded manifests: %w", err)
+	}
+	return manifests, nil
+}
+
 // Run starts the framework with the given configuration
 // It handles the complete lifecycle: initialization, startup, and shutdown
 func Run(ctx context.Context, cfg Config) error {
 	// Initialize logger
-	zapLog, err := zap.NewDevelopment()
+	logger, err := setupLogger()
 	if err != nil {
-		return fmt.Errorf("failed to create logger: %w", err)
+		return err
 	}
-	logger := zapr.NewLogger(zapLog)
 
 	// Validate configuration
 	if err := cfg.Validate(); err != nil {
@@ -103,39 +150,13 @@ func Run(ctx context.Context, cfg Config) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	var manifests map[string][]byte
-	var parameterGetter manifest.ParameterGetter
+	// Setup Kubernetes client (may fail gracefully - returns nil parameterGetter)
+	_, parameterGetter, _ := setupKubernetesClient(ctx, logger, cfg)
 
-	// Always attempt to create parameter client for manifest loading
-	// If Kubernetes is unavailable, fall back to default parameters
-	logger.Info("Setting up Kubernetes client for manifest loading")
-	kubeConfig, err := reconciler.GetKubernetesConfig()
+	// Load manifests
+	manifests, err := loadManifests(ctx, cfg, parameterGetter)
 	if err != nil {
-		logger.Info("Kubernetes config not available, using default parameters for template rendering", "error", err)
-		// Use nil parameterGetter which will use defaults in manifest loader
-		parameterGetter = nil
-	} else {
-		dynamicClient, err := dynamic.NewForConfig(kubeConfig)
-		if err != nil {
-			logger.Info("Failed to create dynamic client, using default parameters for template rendering", "error", err)
-			// Use nil parameterGetter which will use defaults in manifest loader
-			parameterGetter = nil
-		} else {
-			// Create temporary CRD client for manifest loading
-			parameterClient := crd.NewClient(dynamicClient, logger, cfg.CRDGroup, cfg.CRDVersion, cfg.CRDResource)
-			
-			// Create parameter getter function that returns full spec
-			defaultNamespace := "default"
-			parameterGetter = func(ctx context.Context) (map[string]interface{}, error) {
-				return parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
-			}
-		}
-	}
-
-	logger.Info("Loading embedded manifests with template rendering")
-	manifests, err = manifest.LoadEmbeddedManifests(cfg.ManifestFS, cfg.ManifestRoot, ctx, parameterGetter, cfg.TemplateFuncs)
-	if err != nil {
-		return fmt.Errorf("failed to load embedded manifests: %w", err)
+		return err
 	}
 	logger.Info("Loaded manifests", "count", len(manifests))
 

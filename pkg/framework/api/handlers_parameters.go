@@ -25,30 +25,18 @@ func (h *Handler) getDetectedNamespace() string {
 func (h *Handler) GetParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
-	// Get instance name from query parameter
-	instanceName := getInstanceName(r)
-	
-	// Detect namespace from manifests
-	detectedNamespace := h.getDetectedNamespace()
-	if detectedNamespace == "" {
-		detectedNamespace = "default"
-	}
+	// Get namespace and instance name
+	detectedNamespace, instanceName := h.getNamespaceAndInstance(r)
 
-	spec, err := h.parameterClient.GetSpec(ctx, instanceName, detectedNamespace)
-	if err != nil || spec == nil || len(spec) == 0 {
-		// Fallback to default namespace
-		if detectedNamespace != "default" {
-			spec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
-		}
+	spec, err := h.getSpecWithFallback(ctx, instanceName, detectedNamespace)
+	if err != nil {
+		// Try fallback to default instance in default namespace
+		spec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
 		if err != nil {
 			h.logger.Error(err, "failed to get DeploymentParameters spec")
 			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_parameters_failed", err.Error(), nil)
 			return
 		}
-	}
-	if err != nil {
-		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_parameters_failed", err.Error(), nil)
-		return
 	}
 
 	if spec == nil || len(spec) == 0 {
@@ -69,14 +57,8 @@ func (h *Handler) GetParameters(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
-	// Get instance name from query parameter
-	instanceName := getInstanceName(r)
-	
-	// Detect namespace from manifests
-	detectedNamespace := h.getDetectedNamespace()
-	if detectedNamespace == "" {
-		detectedNamespace = "default"
-	}
+	// Get namespace and instance name
+	detectedNamespace, instanceName := h.getNamespaceAndInstance(r)
 
 	var spec map[string]interface{}
 

@@ -14,7 +14,7 @@ import (
 )
 
 // parseYAML parses YAML data into a runtime.Object
-func (r *Reconciler) parseYAML(yamlData []byte, resourceKey string) (runtime.Object, error) {
+func (r *reconcilerImpl) parseYAML(yamlData []byte, resourceKey string) (runtime.Object, error) {
 	decoder := serializer.NewCodecFactory(r.scheme).UniversalDeserializer()
 	obj, _, err := decoder.Decode(yamlData, nil, nil)
 	if err != nil {
@@ -25,7 +25,7 @@ func (r *Reconciler) parseYAML(yamlData []byte, resourceKey string) (runtime.Obj
 }
 
 // parseKey parses a resource key string into an unstructured object
-func (r *Reconciler) parseKey(key string) (*unstructured.Unstructured, error) {
+func (r *reconcilerImpl) parseKey(key string) (*unstructured.Unstructured, error) {
 	parts := strings.Split(key, "/")
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("%w: invalid key format: %s (expected namespace/kind/name)", apperrors.ErrInvalid, key)

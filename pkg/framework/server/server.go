@@ -1,16 +1,12 @@
 package server
 
 import (
-	"context"
 	"embed"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/go-logr/logr"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/garunski/conductor-framework/pkg/framework/api"
 	"github.com/garunski/conductor-framework/pkg/framework/crd"
@@ -18,7 +14,6 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/events"
 	"github.com/garunski/conductor-framework/pkg/framework/index"
 	"github.com/garunski/conductor-framework/pkg/framework/reconciler"
-	"github.com/garunski/conductor-framework/pkg/framework/store"
 )
 
 // Config holds server configuration
@@ -42,8 +37,8 @@ type Server struct {
 	logger          logr.Logger
 	db              *database.DB
 	index           *index.ManifestIndex
-	eventStore      *events.Storage
-	reconciler      *reconciler.Reconciler
+	eventStore      events.EventStorage
+	reconciler      reconciler.Reconciler
 	handler         *api.Handler
 	httpServer      *http.Server
 	reconcileCh     chan string
@@ -53,76 +48,23 @@ type Server struct {
 // NewServer creates a new server instance
 // manifests should be pre-loaded before calling this function
 func NewServer(cfg *Config, logger logr.Logger, manifests map[string][]byte) (*Server, error) {
-	ctx := context.Background()
-
-	logger.Info("Setting up Kubernetes client")
-	kubeConfig, err := reconciler.GetKubernetesConfig()
+	// Create Kubernetes clients
+	clientset, dynamicClient, err := NewKubernetesClients(cfg, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Kubernetes config: %w", err)
+		return nil, err
 	}
 
-	clientset, err := kubernetes.NewForConfig(kubeConfig)
+	// Create CRD client
+	parameterClient, err := NewCRDClient(dynamicClient, cfg, logger)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Kubernetes clientset: %w", err)
+		return nil, err
 	}
 
-	dynamicClient, err := dynamic.NewForConfig(kubeConfig)
+	// Create storage components
+	storage, err := NewStorageComponents(cfg, logger, manifests)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
+		return nil, err
 	}
-
-	// Always initialize CRD parameter client
-	parameterClient := crd.NewClient(dynamicClient, logger, cfg.CRDGroup, cfg.CRDVersion, cfg.CRDResource)
-	logger.Info("CRD parameter client initialized", "group", cfg.CRDGroup, "version", cfg.CRDVersion, "resource", cfg.CRDResource)
-
-	// Get or create default DeploymentParameters instance
-	defaultNamespace := "default"
-	defaultParams, err := parameterClient.Get(ctx, crd.DefaultName, defaultNamespace)
-	if err != nil {
-		// Log error but continue - parameter client is still available, just can't get/create default instance
-		logger.Error(err, "failed to get default DeploymentParameters, continuing without it")
-	} else if defaultParams == nil {
-		logger.Info("Creating default DeploymentParameters instance")
-		defaultParams = &crd.DeploymentParameters{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      crd.DefaultName,
-				Namespace: defaultNamespace,
-			},
-			Spec: crd.DeploymentParametersSpec{
-				"global": map[string]interface{}{
-					"namespace":  "default",
-					"namePrefix": "",
-					"replicas":   int32(1),
-				},
-			},
-		}
-		if err := parameterClient.Create(ctx, defaultParams); err != nil {
-			logger.Error(err, "failed to create default DeploymentParameters, continuing without it")
-		} else {
-			logger.Info("Created default DeploymentParameters instance")
-		}
-	}
-
-	logger.Info("Opening BadgerDB", "path", cfg.DataPath)
-	db, err := database.NewDB(cfg.DataPath, logger)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open BadgerDB: %w", err)
-	}
-
-	logger.Info("Loading DB overrides")
-	dbOverrides, err := db.List("")
-	if err != nil {
-		return nil, fmt.Errorf("failed to load DB overrides: %w", err)
-	}
-	logger.Info("Loaded DB overrides", "count", len(dbOverrides))
-
-	idx := index.NewIndex()
-	idx.Merge(manifests, dbOverrides)
-
-	eventStore := events.NewStorage(db, logger)
-	logger.Info("Event storage initialized")
-
-	manifestStore := store.NewManifestStore(db, idx, logger)
 
 	// Use Config.AppName for reconciler field manager
 	appName := cfg.AppName
@@ -130,23 +72,24 @@ func NewServer(cfg *Config, logger logr.Logger, manifests map[string][]byte) (*S
 		appName = "conductor"
 	}
 
+	// Create reconciler
 	rec, err := reconciler.NewReconciler(
 		clientset,
 		dynamicClient,
-		manifestStore,
+		storage.ManifestStore,
 		logger,
-		eventStore,
+		storage.EventStore,
 		appName,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create reconciler: %w", err)
 	}
 
+	// Create handler
 	reconcileCh := make(chan string, 100)
-
 	handler, err := api.NewHandler(
-		manifestStore,
-		eventStore,
+		storage.ManifestStore,
+		storage.EventStore,
 		logger,
 		reconcileCh,
 		rec,
@@ -161,6 +104,7 @@ func NewServer(cfg *Config, logger logr.Logger, manifests map[string][]byte) (*S
 		return nil, fmt.Errorf("failed to create handler: %w", err)
 	}
 
+	// Create HTTP server
 	router := handler.SetupRoutes()
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%s", cfg.Port),
@@ -170,9 +114,9 @@ func NewServer(cfg *Config, logger logr.Logger, manifests map[string][]byte) (*S
 	return &Server{
 		config:          cfg,
 		logger:          logger,
-		db:              db,
-		index:           idx,
-		eventStore:      eventStore,
+		db:              storage.DB,
+		index:           storage.Index,
+		eventStore:      storage.EventStore,
 		reconciler:      rec,
 		handler:         handler,
 		httpServer:      httpServer,

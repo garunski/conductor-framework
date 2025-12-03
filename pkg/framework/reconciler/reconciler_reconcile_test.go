@@ -32,7 +32,8 @@ data:
 	}
 
 	previousKeys := map[string]bool{}
-	result, err := rec.reconcile(ctx, manifests, previousKeys)
+	impl := getReconcilerImpl(t, rec)
+	result, err := impl.reconcile(ctx, manifests, previousKeys)
 	if err != nil {
 		t.Fatalf("reconcile() error = %v", err)
 	}
@@ -67,7 +68,8 @@ func TestReconciler_reconcile_InvalidYAML(t *testing.T) {
 	}
 
 	previousKeys := map[string]bool{}
-	result, err := rec.reconcile(ctx, manifests, previousKeys)
+	impl := getReconcilerImpl(t, rec)
+	result, err := impl.reconcile(ctx, manifests, previousKeys)
 	if err != nil {
 		t.Fatalf("reconcile() error = %v", err)
 	}
@@ -100,13 +102,14 @@ func TestReconciler_reconcile_OrphanedResources(t *testing.T) {
 
 	key := "default/ConfigMap/orphaned"
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
-	_, err := rec.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj, metav1.CreateOptions{})
+	impl := getReconcilerImpl(t, rec)
+	_, err := impl.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create resource: %v", err)
 	}
 
 	// Mark it as managed
-	rec.setManaged(key)
+	impl.setManaged(key)
 
 	// Now reconcile with different manifests (orphaned resource should be deleted)
 	manifests := map[string][]byte{
@@ -121,7 +124,7 @@ metadata:
 		key: true,
 	}
 
-	result, err := rec.reconcile(ctx, manifests, previousKeys)
+	result, err := impl.reconcile(ctx, manifests, previousKeys)
 	if err != nil {
 		t.Fatalf("reconcile() error = %v", err)
 	}
@@ -152,7 +155,8 @@ func TestReconciler_deleteOrphanedResources(t *testing.T) {
 
 	key := "default/ConfigMap/orphaned"
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
-	_, err := rec.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj, metav1.CreateOptions{})
+	impl := getReconcilerImpl(t, rec)
+	_, err := impl.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create resource: %v", err)
 	}
@@ -162,7 +166,7 @@ func TestReconciler_deleteOrphanedResources(t *testing.T) {
 	}
 	currentKeys := map[string]bool{}
 
-	deletedCount := rec.deleteOrphanedResources(ctx, previousKeys, currentKeys)
+	deletedCount := impl.deleteOrphanedResources(ctx, previousKeys, currentKeys)
 	// Should attempt to delete the orphaned resource
 	if deletedCount < 0 {
 		t.Errorf("deleteOrphanedResources() DeletedCount = %v, want >= 0", deletedCount)
@@ -186,16 +190,17 @@ metadata:
   name: cm2
   namespace: default`)
 
-	err := rec.store.Create("default/ConfigMap/cm1", manifest1)
+	impl := getReconcilerImpl(t, rec)
+	err := impl.store.Create("default/ConfigMap/cm1", manifest1)
 	if err != nil {
 		t.Fatalf("Failed to create manifest: %v", err)
 	}
-	err = rec.store.Create("default/ConfigMap/cm2", manifest2)
+	err = impl.store.Create("default/ConfigMap/cm2", manifest2)
 	if err != nil {
 		t.Fatalf("Failed to create manifest: %v", err)
 	}
 
-	rec.reconcileAll(ctx)
+	impl.reconcileAll(ctx)
 
 	// Verify reconcileAll executed (may have errors due to fake client limitations)
 	// The important part is that the function executed and processed the manifests
@@ -213,7 +218,8 @@ metadata:
   name: test-cm
   namespace: default`)
 
-	err := rec.store.Create("default/ConfigMap/test-cm", manifest)
+	impl := getReconcilerImpl(t, rec)
+	err := impl.store.Create("default/ConfigMap/test-cm", manifest)
 	if err != nil {
 		t.Fatalf("Failed to create manifest: %v", err)
 	}
@@ -248,11 +254,12 @@ func TestReconciler_ReconcileKey_NonExistent_Managed(t *testing.T) {
 
 	key := "default/ConfigMap/to-delete"
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
-	_, err := rec.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj, metav1.CreateOptions{})
+	impl := getReconcilerImpl(t, rec)
+	_, err := impl.dynamicClient.Resource(gvr).Namespace("default").Create(ctx, obj, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create resource: %v", err)
 	}
-	rec.setManaged(key)
+	impl.setManaged(key)
 
 	// Now reconcile key that doesn't exist in store (should delete)
 	err = rec.ReconcileKey(ctx, key)
@@ -261,7 +268,7 @@ func TestReconciler_ReconcileKey_NonExistent_Managed(t *testing.T) {
 	}
 
 	// Verify it's no longer managed
-	if rec.isManaged(key) {
+	if impl.isManaged(key) {
 		t.Error("ReconcileKey() did not remove managed status")
 	}
 }

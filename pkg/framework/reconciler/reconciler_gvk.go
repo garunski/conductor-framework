@@ -8,7 +8,7 @@ import (
 )
 
 // resolveGVK resolves a kind string to a GroupVersionKind
-func (r *Reconciler) resolveGVK(kind string) (schema.GroupVersionKind, error) {
+func (r *reconcilerImpl) resolveGVK(kind string) (schema.GroupVersionKind, error) {
 	r.cacheMu.RLock()
 	if gvk, found := r.gvkCache[kind]; found {
 		r.cacheMu.RUnlock()
@@ -52,7 +52,7 @@ func (r *Reconciler) resolveGVK(kind string) (schema.GroupVersionKind, error) {
 }
 
 // getObjectForGVK creates an unstructured object for the given GVK, namespace, and name
-func (r *Reconciler) getObjectForGVK(gvk schema.GroupVersionKind, namespace, name string) *unstructured.Unstructured {
+func (r *reconcilerImpl) getObjectForGVK(gvk schema.GroupVersionKind, namespace, name string) *unstructured.Unstructured {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(gvk)
 	obj.SetName(name)
@@ -63,7 +63,7 @@ func (r *Reconciler) getObjectForGVK(gvk schema.GroupVersionKind, namespace, nam
 }
 
 // resolveResourceName resolves a GVK to its resource name (plural form)
-func (r *Reconciler) resolveResourceName(gvk schema.GroupVersionKind) string {
+func (r *reconcilerImpl) resolveResourceName(gvk schema.GroupVersionKind) string {
 	cacheKey := gvk.String()
 
 	r.cacheMu.RLock()
@@ -103,7 +103,7 @@ func (r *Reconciler) resolveResourceName(gvk schema.GroupVersionKind) string {
 }
 
 // initCommonGVKs initializes the common GVK cache
-func (r *Reconciler) initCommonGVKs() {
+func (r *reconcilerImpl) initCommonGVKs() {
 	r.gvkCache = map[string]schema.GroupVersionKind{
 		"Deployment":            {Group: "apps", Version: "v1", Kind: "Deployment"},
 		"StatefulSet":           {Group: "apps", Version: "v1", Kind: "StatefulSet"},

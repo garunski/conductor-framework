@@ -14,7 +14,7 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/events"
 )
 
-func (r *Reconciler) deleteObject(ctx context.Context, obj *unstructured.Unstructured, resourceKey string) error {
+func (r *reconcilerImpl) deleteObject(ctx context.Context, obj *unstructured.Unstructured, resourceKey string) error {
 	gvk := obj.GroupVersionKind()
 	if gvk.Kind == "" {
 		return fmt.Errorf("%w: object missing kind for resource %s", apperrors.ErrInvalid, resourceKey)

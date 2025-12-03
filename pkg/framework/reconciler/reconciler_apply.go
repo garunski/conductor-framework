@@ -15,7 +15,7 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/events"
 )
 
-func (r *Reconciler) applyObject(ctx context.Context, obj runtime.Object, resourceKey string) error {
+func (r *reconcilerImpl) applyObject(ctx context.Context, obj runtime.Object, resourceKey string) error {
 
 	unstructuredObj, ok := obj.(*unstructured.Unstructured)
 	if !ok {

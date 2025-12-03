@@ -66,7 +66,7 @@ func filterManifestsByServices(manifests map[string][]byte, services []string) m
 }
 
 // checkServiceInstalled checks if a service is installed by looking for its main workload (Deployment or StatefulSet)
-func checkServiceInstalled(ctx context.Context, serviceName string, manifests map[string][]byte, rec *reconciler.Reconciler) bool {
+func checkServiceInstalled(ctx context.Context, serviceName string, manifests map[string][]byte, rec reconciler.Reconciler) bool {
 	if rec == nil {
 		return false
 	}
@@ -119,7 +119,7 @@ func checkServiceInstalled(ctx context.Context, serviceName string, manifests ma
 }
 
 // getServiceInstallationStatus returns a map of service name -> installation status
-func getServiceInstallationStatus(ctx context.Context, services []string, manifests map[string][]byte, rec *reconciler.Reconciler) map[string]bool {
+func getServiceInstallationStatus(ctx context.Context, services []string, manifests map[string][]byte, rec reconciler.Reconciler) map[string]bool {
 	statusMap := make(map[string]bool)
 
 	// Create a context with timeout

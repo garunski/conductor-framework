@@ -9,7 +9,7 @@ import (
 )
 
 // DeployManifests deploys the provided manifests
-func (r *Reconciler) DeployManifests(ctx context.Context, manifests map[string][]byte) error {
+func (r *reconcilerImpl) DeployManifests(ctx context.Context, manifests map[string][]byte) error {
 	r.logger.Info("Deploying selected manifests", "count", len(manifests))
 
 	events.StoreEventSafe(r.eventStore, r.logger, events.Info("", "reconcile", "Reconciliation started"))
@@ -47,13 +47,13 @@ func (r *Reconciler) DeployManifests(ctx context.Context, manifests map[string][
 }
 
 // UpdateManifests updates the provided manifests
-func (r *Reconciler) UpdateManifests(ctx context.Context, manifests map[string][]byte) error {
+func (r *reconcilerImpl) UpdateManifests(ctx context.Context, manifests map[string][]byte) error {
 	r.logger.Info("Updating selected manifests", "count", len(manifests))
 	return r.DeployManifests(ctx, manifests)
 }
 
 // DeleteManifests deletes only the resources in the provided manifest map
-func (r *Reconciler) DeleteManifests(ctx context.Context, manifests map[string][]byte) error {
+func (r *reconcilerImpl) DeleteManifests(ctx context.Context, manifests map[string][]byte) error {
 	r.logger.Info("Deleting selected manifests", "count", len(manifests))
 
 	keys := make([]string, 0, len(manifests))

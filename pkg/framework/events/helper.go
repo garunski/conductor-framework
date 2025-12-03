@@ -2,7 +2,7 @@ package events
 
 import "github.com/go-logr/logr"
 
-func StoreEventSafe(storage *Storage, logger logr.Logger, event Event) {
+func StoreEventSafe(storage EventStorage, logger logr.Logger, event Event) {
 	if storage == nil {
 		return
 	}

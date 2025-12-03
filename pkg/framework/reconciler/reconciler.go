@@ -22,15 +22,15 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/store"
 )
 
-type Reconciler struct {
+type reconcilerImpl struct {
 	clientset         kubernetes.Interface
 	dynamicClient     dynamic.Interface
-	store             *store.ManifestStore
+	store             store.ManifestStore
 	logger            logr.Logger
 	scheme            *runtime.Scheme
 	ready             bool
 	managedKeys       sync.Map
-	eventStore        *events.Storage
+	eventStore        events.EventStorage
 	discoveryClient   discovery.DiscoveryInterface
 	gvkCache          map[string]schema.GroupVersionKind
 	resourceNameCache map[string]string
@@ -40,15 +40,15 @@ type Reconciler struct {
 	appName           string
 }
 
-func (r *Reconciler) GetClientset() kubernetes.Interface {
+func (r *reconcilerImpl) GetClientset() kubernetes.Interface {
 	return r.clientset
 }
 
-func (r *Reconciler) SetReady(ready bool) {
+func (r *reconcilerImpl) SetReady(ready bool) {
 	r.ready = ready
 }
 
-func (r *Reconciler) IsReady() bool {
+func (r *reconcilerImpl) IsReady() bool {
 	return r.ready
 }
 
@@ -77,7 +77,7 @@ func GetKubernetesConfig() (*rest.Config, error) {
 
 // NewReconciler creates a new Reconciler instance
 // If appName is empty, it defaults to "conductor"
-func NewReconciler(clientset kubernetes.Interface, dynamicClient dynamic.Interface, store *store.ManifestStore, logger logr.Logger, eventStore *events.Storage, appName string) (*Reconciler, error) {
+func NewReconciler(clientset kubernetes.Interface, dynamicClient dynamic.Interface, store store.ManifestStore, logger logr.Logger, eventStore events.EventStorage, appName string) (Reconciler, error) {
 	// Default appName to "conductor" if not provided
 	if appName == "" {
 		appName = "conductor"
@@ -104,7 +104,7 @@ func NewReconciler(clientset kubernetes.Interface, dynamicClient dynamic.Interfa
 		"PersistentVolumeClaim": {Group: "", Version: "v1", Kind: "PersistentVolumeClaim"},
 	}
 
-	rec := &Reconciler{
+	rec := &reconcilerImpl{
 		clientset:         clientset,
 		dynamicClient:     dynamicClient,
 		store:             store,

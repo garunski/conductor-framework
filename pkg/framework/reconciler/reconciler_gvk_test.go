@@ -8,9 +8,10 @@ import (
 
 func TestReconciler_ResolveGVK(t *testing.T) {
 	rec := setupTestReconcilerForTests(t)
+	impl := getReconcilerImpl(t, rec)
 
 	// Test with known kind
-	gvk, err := rec.resolveGVK("Deployment")
+	gvk, err := impl.resolveGVK("Deployment")
 	if err != nil {
 		t.Fatalf("resolveGVK() error = %v", err)
 	}
@@ -28,7 +29,7 @@ func TestReconciler_ResolveGVK(t *testing.T) {
 	}
 
 	// Test with unknown kind (should return generic)
-	gvk, err = rec.resolveGVK("UnknownKind")
+	gvk, err = impl.resolveGVK("UnknownKind")
 	if err != nil {
 		t.Fatalf("resolveGVK() error = %v", err)
 	}
@@ -40,6 +41,7 @@ func TestReconciler_ResolveGVK(t *testing.T) {
 
 func TestReconciler_ResolveResourceName(t *testing.T) {
 	rec := setupTestReconcilerForTests(t)
+	impl := getReconcilerImpl(t, rec)
 
 	// Test with known GVK
 	gvk := schema.GroupVersionKind{
@@ -48,7 +50,7 @@ func TestReconciler_ResolveResourceName(t *testing.T) {
 		Kind:    "Deployment",
 	}
 
-	resource := rec.resolveResourceName(gvk)
+	resource := impl.resolveResourceName(gvk)
 	if resource != "deployments" {
 		t.Errorf("resolveResourceName() = %v, want deployments", resource)
 	}
@@ -58,7 +60,7 @@ func TestReconciler_ResolveResourceName(t *testing.T) {
 		Kind: "CustomResource",
 	}
 
-	resource = rec.resolveResourceName(gvk)
+	resource = impl.resolveResourceName(gvk)
 	if resource != "customresources" {
 		t.Errorf("resolveResourceName() = %v, want customresources", resource)
 	}
@@ -66,6 +68,7 @@ func TestReconciler_ResolveResourceName(t *testing.T) {
 
 func TestReconciler_GetObjectForGVK(t *testing.T) {
 	rec := setupTestReconcilerForTests(t)
+	impl := getReconcilerImpl(t, rec)
 
 	gvk := schema.GroupVersionKind{
 		Group:   "apps",
@@ -73,7 +76,7 @@ func TestReconciler_GetObjectForGVK(t *testing.T) {
 		Kind:    "Deployment",
 	}
 
-	obj := rec.getObjectForGVK(gvk, "default", "test-deployment")
+	obj := impl.getObjectForGVK(gvk, "default", "test-deployment")
 
 	if obj.GetName() != "test-deployment" {
 		t.Errorf("getObjectForGVK() name = %v, want test-deployment", obj.GetName())
@@ -90,12 +93,13 @@ func TestReconciler_GetObjectForGVK(t *testing.T) {
 
 func TestReconciler_GetObjectForGVK_ClusterScoped(t *testing.T) {
 	rec := setupTestReconcilerForTests(t)
+	impl := getReconcilerImpl(t, rec)
 
 	gvk := schema.GroupVersionKind{
 		Kind: "Namespace",
 	}
 
-	obj := rec.getObjectForGVK(gvk, "", "test-namespace")
+	obj := impl.getObjectForGVK(gvk, "", "test-namespace")
 
 	if obj.GetName() != "test-namespace" {
 		t.Errorf("getObjectForGVK() name = %v, want test-namespace", obj.GetName())

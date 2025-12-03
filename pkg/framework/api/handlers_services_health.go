@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// checkServiceHealth performs a health check for a service
 func checkServiceHealth(ctx context.Context, client *http.Client, svc serviceInfo) ServiceStatus {
 	status := ServiceStatus{
 		Name:        svc.Name,
@@ -20,7 +21,6 @@ func checkServiceHealth(ctx context.Context, client *http.Client, svc serviceInf
 	url := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", svc.Name, svc.Namespace, svc.Port)
 
 	for _, path := range healthPaths {
-
 		select {
 		case <-ctx.Done():
 			return status
@@ -48,5 +48,16 @@ func checkServiceHealth(ctx context.Context, client *http.Client, svc serviceInf
 
 	status.Status = "unhealthy"
 	return status
+}
+
+// checkServiceHealthAsync performs health check asynchronously and returns results via channel.
+// The channel will be closed after the health check completes.
+func checkServiceHealthAsync(ctx context.Context, client *http.Client, service serviceInfo) <-chan ServiceStatus {
+	resultChan := make(chan ServiceStatus, 1)
+	go func() {
+		defer close(resultChan)
+		resultChan <- checkServiceHealth(ctx, client, service)
+	}()
+	return resultChan
 }
 

@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"text/template"
@@ -17,7 +18,7 @@ func TestRenderTemplate_CustomFunctionOverride(t *testing.T) {
 	manifestBytes := []byte("{{ upper \"test\" }}")
 	spec := make(map[string]interface{})
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, nil, customFuncs)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, customFuncs)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -40,7 +41,7 @@ func TestRenderTemplate_CustomFunctionAvailable(t *testing.T) {
 	manifestBytes := []byte("{{ customFunc \"test\" }}")
 	spec := make(map[string]interface{})
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, nil, customFuncs)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, customFuncs)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -68,7 +69,7 @@ func TestRenderTemplate_ExistingFunctions(t *testing.T) {
 			manifestBytes := []byte(tt.template)
 			spec := make(map[string]interface{})
 
-			result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+			result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 			if err != nil {
 				t.Fatalf("RenderTemplate() error = %v", err)
 			}
@@ -86,7 +87,7 @@ func TestRenderTemplate_NilFunctionMap(t *testing.T) {
 	spec := make(map[string]interface{})
 
 	// Should work with nil function map (uses defaults)
-	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() should work with nil function map: %v", err)
 	}
@@ -102,7 +103,7 @@ func TestRenderTemplate_EnvFunctionsExcluded(t *testing.T) {
 	spec := make(map[string]interface{})
 
 	// Should error because env function is excluded
-	_, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	_, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err == nil {
 		t.Error("env function should be excluded and cause an error")
 	}
@@ -113,7 +114,7 @@ func TestRenderTemplate_ExpandenvFunctionsExcluded(t *testing.T) {
 	spec := make(map[string]interface{})
 
 	// Should error because expandenv function is excluded
-	_, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	_, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err == nil {
 		t.Error("expandenv function should be excluded and cause an error")
 	}
@@ -127,7 +128,7 @@ func TestRenderTemplate_SpecGlobalAccess(t *testing.T) {
 		},
 	}
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -149,7 +150,7 @@ func TestRenderTemplate_SpecServicesAccess(t *testing.T) {
 		},
 	}
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -176,7 +177,7 @@ func TestRenderTemplate_NestedConfigAccess(t *testing.T) {
 		},
 	}
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -198,7 +199,7 @@ func TestRenderTemplate_GetServiceHelper(t *testing.T) {
 		},
 	}
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -218,7 +219,7 @@ func TestRenderTemplate_GetServiceHelperNotFound(t *testing.T) {
 		},
 	}
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, nil, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -240,7 +241,7 @@ func TestRenderTemplate_FilesGet(t *testing.T) {
 	manifestBytes := []byte("{{ .Files.Get \"test.yaml\" }}")
 	spec := make(map[string]interface{})
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, testFS, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, testFS, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -261,7 +262,7 @@ func TestRenderTemplate_FilesGetNotFound(t *testing.T) {
 	manifestBytes := []byte("{{ .Files.Get \"nonexistent.yaml\" }}")
 	spec := make(map[string]interface{})
 
-	result, err := RenderTemplate(manifestBytes, "test", spec, testFS, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "test", spec, testFS, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}
@@ -287,7 +288,7 @@ func TestRenderTemplate_CrossServiceReference(t *testing.T) {
 		},
 	}
 
-	result, err := RenderTemplate(manifestBytes, "frontend", spec, nil, nil)
+	result, err := RenderTemplate(context.Background(), manifestBytes, "frontend", spec, nil, nil)
 	if err != nil {
 		t.Fatalf("RenderTemplate() error = %v", err)
 	}

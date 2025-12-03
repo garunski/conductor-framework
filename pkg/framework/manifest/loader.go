@@ -82,7 +82,7 @@ func LoadEmbeddedManifests(files embed.FS, rootPath string, ctx context.Context,
 		serviceName := extractServiceName(path, rootPath)
 
 		// Render template with full spec and filesystem
-		rendered, err := RenderTemplate(data, serviceName, spec, fileSystem, templateFuncs)
+		rendered, err := RenderTemplate(ctx, data, serviceName, spec, fileSystem, templateFuncs)
 		if err != nil {
 			return fmt.Errorf("failed to render template for %s: %w", path, err)
 		}

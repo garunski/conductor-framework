@@ -9,7 +9,7 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/events"
 )
 
-func (r *Reconciler) reconcile(ctx context.Context, manifests map[string][]byte, previousKeys map[string]bool) (ReconciliationResult, error) {
+func (r *reconcilerImpl) reconcile(ctx context.Context, manifests map[string][]byte, previousKeys map[string]bool) (ReconciliationResult, error) {
 	currentKeys := make(map[string]bool)
 	appliedCount := 0
 	failedCount := 0
@@ -18,8 +18,7 @@ func (r *Reconciler) reconcile(ctx context.Context, manifests map[string][]byte,
 		currentKeys[key] = true
 	}
 
-	const maxConcurrency = 10
-	semaphore := make(chan struct{}, maxConcurrency)
+	semaphore := make(chan struct{}, MaxConcurrency)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
@@ -66,7 +65,7 @@ func (r *Reconciler) reconcile(ctx context.Context, manifests map[string][]byte,
 	}, nil
 }
 
-func (r *Reconciler) deleteOrphanedResources(ctx context.Context, previousKeys, currentKeys map[string]bool) int {
+func (r *reconcilerImpl) deleteOrphanedResources(ctx context.Context, previousKeys, currentKeys map[string]bool) int {
 	deletedCount := 0
 	for key := range previousKeys {
 		if !currentKeys[key] {
@@ -92,7 +91,7 @@ func (r *Reconciler) deleteOrphanedResources(ctx context.Context, previousKeys, 
 	return deletedCount
 }
 
-func (r *Reconciler) reconcileAll(ctx context.Context) {
+func (r *reconcilerImpl) reconcileAll(ctx context.Context) {
 	manifests := r.store.List()
 
 	events.StoreEventSafe(r.eventStore, r.logger, events.Info("", "reconcile", "Reconciliation started"))
