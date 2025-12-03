@@ -190,8 +190,12 @@ func (h *Handler) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	// Merge schema with instance values
 	mergedSchema := mergeSchemaWithInstance(specSchema, instanceSpec)
 	
+	// Get service names for the template
+	services := h.getServiceNames()
+	
 	data := map[string]interface{}{
 		"Schema":          mergedSchema,
+		"Services":        services,
 		"CurrentInstance": instanceName,
 		// AppName and AppVersion will be added by renderTemplate
 	}
