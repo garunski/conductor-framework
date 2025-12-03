@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/garunski/conductor-framework/pkg/framework/crd"
 	"github.com/garunski/conductor-framework/pkg/framework/reconciler"
 	"gopkg.in/yaml.v3"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -42,8 +41,11 @@ func (h *Handler) Up(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
+	// Get instance name from query parameter
+	instanceName := getInstanceName(r)
+	
 	// Re-render manifests with current parameters before deploying
-	updatedManifests, err := h.updateManifestsWithCurrentParameters(ctx, manifests)
+	updatedManifests, err := h.updateManifestsWithCurrentParameters(ctx, manifests, instanceName)
 	if err != nil {
 		h.logger.Error(err, "failed to update manifests with current parameters, using existing manifests")
 	} else {
@@ -154,8 +156,11 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
+	// Get instance name from query parameter
+	instanceName := getInstanceName(r)
+	
 	// Re-render manifests with current parameters before updating
-	updatedManifests, err := h.updateManifestsWithCurrentParameters(ctx, manifests)
+	updatedManifests, err := h.updateManifestsWithCurrentParameters(ctx, manifests, instanceName)
 	if err != nil {
 		h.logger.Error(err, "failed to update manifests with current parameters, using existing manifests")
 	} else {
@@ -310,7 +315,7 @@ func getServiceInstallationStatus(ctx context.Context, services []string, manife
 
 // updateManifestsWithCurrentParameters updates manifests with current parameters (especially namespace)
 // This ensures that global defaults are applied when deploying
-func (h *Handler) updateManifestsWithCurrentParameters(ctx context.Context, manifests map[string][]byte) (map[string][]byte, error) {
+func (h *Handler) updateManifestsWithCurrentParameters(ctx context.Context, manifests map[string][]byte, instanceName string) (map[string][]byte, error) {
 	defaultNamespace := "default"
 	updatedManifests := make(map[string][]byte)
 	
@@ -343,7 +348,7 @@ func (h *Handler) updateManifestsWithCurrentParameters(ctx context.Context, mani
 	}
 	
 	// Get spec once for all services
-	spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
+	spec, err := h.parameterClient.GetSpec(ctx, instanceName, defaultNamespace)
 	if err != nil {
 		h.logger.V(1).Info("failed to get spec, using existing manifests", "error", err)
 		// Use existing manifests if we can't get spec

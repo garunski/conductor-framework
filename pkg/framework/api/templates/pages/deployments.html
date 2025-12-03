@@ -177,7 +177,12 @@
                 setButtonLoading(button, true);
                 
                 try {
-                    const response = await fetch('/api/up', {
+                    // Get current instance from URL
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const instance = urlParams.get('instance') || 'default';
+                    const apiUrl = instance === 'default' ? '/api/up' : `/api/up?instance=${encodeURIComponent(instance)}`;
+                    
+                    const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -216,7 +221,12 @@
                 setButtonLoading(button, true);
                 
                 try {
-                    const response = await fetch('/api/update', {
+                    // Get current instance from URL
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const instance = urlParams.get('instance') || 'default';
+                    const apiUrl = instance === 'default' ? '/api/update' : `/api/update?instance=${encodeURIComponent(instance)}`;
+                    
+                    const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -258,7 +268,12 @@
                         setButtonLoading(button, true);
                 
                         try {
-                            const response = await fetch('/api/down', {
+                            // Get current instance from URL
+                            const urlParams = new URLSearchParams(window.location.search);
+                            const instance = urlParams.get('instance') || 'default';
+                            const apiUrl = instance === 'default' ? '/api/down' : `/api/down?instance=${encodeURIComponent(instance)}`;
+                            
+                            const response = await fetch(apiUrl, {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json'
@@ -283,6 +298,44 @@
                         }
                     }
                 );
+            });
+        }
+
+        // Instance selector functionality
+        const instanceSelector = document.getElementById('instance-selector');
+        if (instanceSelector) {
+            // Load instances on page load
+            fetch('/api/parameters/instances')
+                .then(res => res.json())
+                .then(instances => {
+                    // Clear existing options except default
+                    instanceSelector.innerHTML = '';
+                    instances.forEach(instance => {
+                        const option = document.createElement('option');
+                        option.value = instance;
+                        option.textContent = instance;
+                        instanceSelector.appendChild(option);
+                    });
+                    
+                    // Set selected value from URL query parameter
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const instanceParam = urlParams.get('instance') || 'default';
+                    instanceSelector.value = instanceParam;
+                })
+                .catch(err => {
+                    console.error('Failed to load instances:', err);
+                });
+            
+            // Handle instance selection change
+            instanceSelector.addEventListener('change', function() {
+                const selectedInstance = this.value;
+                const url = new URL(window.location);
+                if (selectedInstance === 'default') {
+                    url.searchParams.delete('instance');
+                } else {
+                    url.searchParams.set('instance', selectedInstance);
+                }
+                window.location.href = url.toString();
             });
         }
     </script>

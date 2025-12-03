@@ -12,9 +12,25 @@
     const FieldRenderer = DeploymentParams.FieldRenderer;
     
     DeploymentParams.ApiClient = {
+        // Get current instance name from URL query parameter
+        getCurrentInstance: function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('instance') || 'default';
+        },
+        
+        // Build URL with instance query parameter
+        buildUrl: function(baseUrl) {
+            const instance = this.getCurrentInstance();
+            const url = new URL(baseUrl, window.location.origin);
+            if (instance !== 'default') {
+                url.searchParams.set('instance', instance);
+            }
+            return url.toString();
+        },
+        
         fetchSchema: async function() {
             try {
-                const response = await fetch('/api/parameters/schema');
+                const response = await fetch(this.buildUrl('/api/parameters/schema'));
                 if (response.ok) {
                     const schema = await response.json();
                     // Debug: log schema structure to verify descriptions are present
@@ -34,13 +50,46 @@
         
         loadDeployedValues: async function() {
             try {
-                const paramsResponse = await fetch('/api/parameters');
+                const paramsResponse = await fetch(this.buildUrl('/api/parameters'));
                 if (paramsResponse.ok) {
                     const paramsData = await paramsResponse.json();
                     State.setDeployedData(paramsData || { global: {}, services: {} });
                 }
             } catch (error) {
                 State.setDeployedData(State.getInstanceData());
+            }
+        },
+        
+        listInstances: async function() {
+            try {
+                const response = await fetch('/api/parameters/instances');
+                if (response.ok) {
+                    return await response.json();
+                }
+                throw new Error('Failed to list instances');
+            } catch (error) {
+                console.error('Failed to list instances:', error);
+                return ['default'];
+            }
+        },
+        
+        createInstance: async function() {
+            try {
+                const response = await fetch('/api/parameters/instances', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.name;
+                }
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to create instance');
+            } catch (error) {
+                console.error('Failed to create instance:', error);
+                throw error;
             }
         },
         
@@ -77,7 +126,7 @@
                     }
                 }
                 
-                const response = await fetch('/api/parameters', {
+                const response = await fetch(this.buildUrl('/api/parameters'), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

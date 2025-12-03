@@ -1,20 +1,27 @@
 {{define "deployment-parameters"}}
 <div class="card mb-4">
     <div class="card-header deployment-params-header">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <div>
-                <h2>Deployment Parameters</h2>
-                <p class="card-description mb-0">Configure deployment settings for all services</p>
-            </div>
-            <div class="d-flex flex-column align-items-end gap-2">
-                <div class="d-flex gap-2 align-items-center flex-wrap">
-                    <button type="button" class="btn btn-sm btn-secondary" id="btn-validate-yaml" aria-label="Validate YAML">VALIDATE</button>
-                    <button type="button" class="btn btn-sm btn-secondary" id="btn-reset-yaml" aria-label="Reset YAML to original values">RESET</button>
-                    <button type="submit" form="parameters-form" class="btn btn-sm" id="btn-save-parameters">SAVE</button>
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <h2>Deployment Parameters</h2>
+                    <p class="card-description mb-0">Configure deployment settings for all services</p>
                 </div>
-                <div id="parameters-status" class="small" role="status" aria-live="polite"></div>
+                <div class="d-flex flex-column align-items-end gap-2">
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="instance-selector" class="small mb-0">Parameter Instance:</label>
+                            <select id="instance-selector" class="form-select form-select-sm" style="width: auto; min-width: 150px;">
+                                <option value="default">default</option>
+                            </select>
+                            <button type="button" class="btn btn-sm btn-secondary" id="btn-new-instance" aria-label="Create new parameter instance">NEW</button>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-secondary" id="btn-validate-yaml" aria-label="Validate YAML">VALIDATE</button>
+                        <button type="button" class="btn btn-sm btn-secondary" id="btn-reset-yaml" aria-label="Reset YAML to original values">RESET</button>
+                        <button type="submit" form="parameters-form" class="btn btn-sm" id="btn-save-parameters">SAVE</button>
+                    </div>
+                    <div id="parameters-status" class="small" role="status" aria-live="polite"></div>
+                </div>
             </div>
-        </div>
     </div>
     
     <div class="card-body">
@@ -85,9 +92,10 @@
         
         if (typeof window.deploymentParams !== 'undefined' && window.deploymentParams.init) {
             const servicesJSON = {{.Services | json | safeJS}};
+            const ApiClient = DeploymentParams.ApiClient;
             
             // Fetch parameters from API endpoint
-            fetch('/api/parameters')
+            fetch(ApiClient.buildUrl('/api/parameters'))
                 .then(r => r.json())
                 .then(instanceSpec => {
                     window.deploymentParams.init(instanceSpec, servicesJSON);
@@ -96,6 +104,81 @@
                     // Fallback to empty data
                     window.deploymentParams.init({}, servicesJSON);
                 });
+        }
+        
+        // Initialize instance selector
+        const instanceSelector = document.getElementById('instance-selector');
+        const btnNewInstance = document.getElementById('btn-new-instance');
+        
+        if (instanceSelector) {
+            // Load instances on page load
+            if (typeof DeploymentParams !== 'undefined' && DeploymentParams.ApiClient) {
+                DeploymentParams.ApiClient.listInstances()
+                    .then(instances => {
+                        // Clear existing options
+                        instanceSelector.innerHTML = '';
+                        instances.forEach(instance => {
+                            const option = document.createElement('option');
+                            option.value = instance;
+                            option.textContent = instance;
+                            instanceSelector.appendChild(option);
+                        });
+                        
+                        // Set selected value from URL query parameter
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const instanceParam = urlParams.get('instance') || 'default';
+                        instanceSelector.value = instanceParam;
+                    })
+                    .catch(err => {
+                        console.error('Failed to load instances:', err);
+                        // Ensure default option exists
+                        if (instanceSelector.options.length === 0) {
+                            const option = document.createElement('option');
+                            option.value = 'default';
+                            option.textContent = 'default';
+                            instanceSelector.appendChild(option);
+                        }
+                    });
+                
+                // Handle instance selection change
+                instanceSelector.addEventListener('change', function() {
+                    const selectedInstance = this.value;
+                    const url = new URL(window.location);
+                    if (selectedInstance === 'default') {
+                        url.searchParams.delete('instance');
+                    } else {
+                        url.searchParams.set('instance', selectedInstance);
+                    }
+                    window.location.href = url.toString();
+                });
+            }
+        }
+        
+        // Handle NEW button click
+        if (btnNewInstance && typeof DeploymentParams !== 'undefined' && DeploymentParams.ApiClient) {
+            btnNewInstance.addEventListener('click', async function() {
+                const button = this;
+                const Utils = DeploymentParams.Utils;
+                if (Utils) {
+                    Utils.setButtonLoading(button, true);
+                }
+                
+                try {
+                    const newInstanceName = await DeploymentParams.ApiClient.createInstance();
+                    // Redirect to the new instance
+                    const url = new URL(window.location);
+                    url.searchParams.set('instance', newInstanceName);
+                    window.location.href = url.toString();
+                } catch (error) {
+                    if (Utils) {
+                        Utils.showStatus(`Failed to create instance: ${error.message}`, 'error');
+                        Utils.setButtonLoading(button, false);
+                    } else {
+                        alert(`Failed to create instance: ${error.message}`);
+                        button.disabled = false;
+                    }
+                }
+            });
         }
     });
 </script>

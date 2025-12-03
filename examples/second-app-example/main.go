@@ -16,16 +16,16 @@ func main() {
 	ctx := context.Background()
 
 	cfg := framework.DefaultConfig()
-	cfg.AppName = "Guestbook"
+	cfg.AppName = "SecondApp"
 	cfg.AppVersion = getVersion()
 	cfg.ManifestFS = manifestFS
 	cfg.ManifestRoot = "manifests"
 	
-	// Explicitly configure CRD for Guestbook app
-	// This uses the default: deploymentparameters.conductor.io
-	cfg.CRDGroup = "conductor.io"
+	// Configure a different CRD for this app
+	// This will use: appparameters.mycompany.io
+	cfg.CRDGroup = "mycompany.io"
 	cfg.CRDVersion = "v1alpha1"
-	cfg.CRDResource = "deploymentparameters"
+	cfg.CRDResource = "appparameters"
 
 	if err := framework.Run(ctx, cfg); err != nil {
 		log.Fatalf("Error: %v", err)
@@ -38,3 +38,4 @@ func getVersion() string {
 	}
 	return "dev"
 }
+

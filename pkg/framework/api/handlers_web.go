@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/garunski/conductor-framework/pkg/framework/crd"
 	"gopkg.in/yaml.v3"
 )
 
@@ -47,6 +46,9 @@ func (h *Handler) HomePage(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+	
+	// Get instance name from query parameter
+	instanceName := getInstanceName(r)
 	
 	// Get list of services from manifest directories
 	services := h.getServiceNames()
@@ -91,11 +93,11 @@ func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get CRD instance values - try detected namespace first, then fallback to default
-	instanceSpec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, detectedNamespace)
+	instanceSpec, err := h.parameterClient.GetSpec(ctx, instanceName, detectedNamespace)
 	if err != nil || instanceSpec == nil || len(instanceSpec) == 0 {
 		// Fallback to default namespace if not found in detected namespace
 		if detectedNamespace != "default" {
-			instanceSpec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
+			instanceSpec, err = h.parameterClient.GetSpec(ctx, instanceName, "default")
 		}
 		if err != nil || instanceSpec == nil {
 			instanceSpec = make(map[string]interface{})
@@ -108,7 +110,7 @@ func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get service values for current values display
-	serviceValues := h.getServiceValuesMap(ctx, services, detectedNamespace)
+	serviceValues := h.getServiceValuesMap(ctx, services, detectedNamespace, instanceName)
 	
 	// Convert schema and instance to JSON for JavaScript library
 	var specSchemaJSON, instanceSpecJSON string
@@ -130,6 +132,7 @@ func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 		"ServiceValues":      serviceValues,
 		"CRDSchemaJSON":      specSchemaJSON, // Raw JSON schema for JavaScript library
 		"InstanceSpecJSON":   instanceSpecJSON, // Instance values as JSON
+		"CurrentInstance":    instanceName,     // Current instance name for template
 		// AppName and AppVersion will be added by renderTemplate
 	}
 	
@@ -142,6 +145,9 @@ func (h *Handler) DeploymentsPage(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
+	
+	// Get instance name from query parameter
+	instanceName := getInstanceName(r)
 	
 	// Get list of services from manifest directories
 	services := h.getServiceNames()
@@ -182,11 +188,11 @@ func (h *Handler) ParametersPage(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get CRD instance values - try detected namespace first, then fallback to default
-	instanceSpec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, detectedNamespace)
+	instanceSpec, err := h.parameterClient.GetSpec(ctx, instanceName, detectedNamespace)
 	if err != nil || instanceSpec == nil || len(instanceSpec) == 0 {
 		// Fallback to default namespace if not found in detected namespace
 		if detectedNamespace != "default" {
-			instanceSpec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
+			instanceSpec, err = h.parameterClient.GetSpec(ctx, instanceName, "default")
 		}
 		if err != nil || instanceSpec == nil {
 			instanceSpec = make(map[string]interface{})
@@ -216,6 +222,7 @@ func (h *Handler) ParametersPage(w http.ResponseWriter, r *http.Request) {
 		"ParametersSpec":     instanceSpec, // Keep for backward compatibility
 		"CRDSchemaJSON":      specSchemaJSON, // Raw JSON schema for JavaScript library
 		"InstanceSpecJSON":   instanceSpecJSON, // Instance values as JSON
+		"CurrentInstance":    instanceName,     // Current instance name for template
 		// AppName and AppVersion will be added by renderTemplate
 	}
 	
@@ -285,7 +292,7 @@ func (h *Handler) LogsPage(w http.ResponseWriter, r *http.Request) {
 
 // getServiceValuesMap returns merged/default and deployed values for all services
 // Similar to GetServiceValues but returns a map instead of writing HTTP response
-func (h *Handler) getServiceValuesMap(ctx context.Context, services []string, defaultNamespace string) map[string]map[string]interface{} {
+func (h *Handler) getServiceValuesMap(ctx context.Context, services []string, defaultNamespace string, instanceName string) map[string]map[string]interface{} {
 	result := make(map[string]map[string]interface{})
 	clientset := h.reconciler.GetClientset()
 	manifests := h.store.List()
@@ -297,7 +304,7 @@ func (h *Handler) getServiceValuesMap(ctx context.Context, services []string, de
 		var merged map[string]interface{}
 
 		// Try to get spec, but don't fail if cluster is unavailable
-		spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, defaultNamespace)
+		spec, err := h.parameterClient.GetSpec(ctx, instanceName, defaultNamespace)
 		if err == nil && spec != nil {
 			// Merge global and service-specific parameters
 			merged = make(map[string]interface{})

@@ -1,0 +1,94 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: appparameters.mycompany.io
+spec:
+  group: mycompany.io
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              global:
+                type: object
+                description: Global configuration parameters applied to all services
+                properties:
+                  namespace:
+                    type: string
+                    default: "default"
+                    description: Kubernetes namespace where resources will be deployed
+                  namePrefix:
+                    type: string
+                    default: ""
+                    description: Prefix to add to all resource names
+                  replicas:
+                    type: integer
+                    default: 1
+                    description: Default number of replicas for deployments
+                  imageTag:
+                    type: string
+                    description: Default container image tag to use for all services
+                  imageRegistry:
+                    type: string
+                    default: ""
+                    description: Container image registry URL (e.g., docker.io, gcr.io)
+                  storageClassName:
+                    type: string
+                    default: "local-path"
+                    description: Storage class name for persistent volumes
+                  resources:
+                    type: object
+                    description: Default resource requests and limits for containers
+                    properties:
+                      requests:
+                        type: object
+                        description: Minimum resources required by the container
+                        properties:
+                          memory:
+                            type: string
+                            description: Memory request (e.g., "128Mi", "1Gi")
+                          cpu:
+                            type: string
+                            description: CPU request (e.g., "100m", "0.5")
+                      limits:
+                        type: object
+                        description: Maximum resources allowed for the container
+                        properties:
+                          memory:
+                            type: string
+                            description: Memory limit (e.g., "256Mi", "2Gi")
+                          cpu:
+                            type: string
+                            description: CPU limit (e.g., "500m", "1")
+              services:
+                type: object
+                description: Service-specific configuration parameters that override global settings
+                additionalProperties:
+                  type: object
+                  additionalProperties: true
+                  properties:
+                    namespace:
+                      type: string
+                      description: Kubernetes namespace for this service (overrides global namespace)
+                    replicas:
+                      type: integer
+                      description: Number of replicas for this service (overrides global replicas)
+                    imageTag:
+                      type: string
+                      description: Container image tag for this service (overrides global imageTag)
+                    config:
+                      type: object
+                      description: Application-specific configuration parameters
+                      additionalProperties: true
+  scope: Namespaced
+  names:
+    plural: appparameters
+    singular: appparameter
+    kind: AppParameters
+

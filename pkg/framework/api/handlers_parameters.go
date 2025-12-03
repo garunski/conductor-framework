@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -18,18 +19,35 @@ import (
 	"github.com/garunski/conductor-framework/pkg/framework/manifest"
 )
 
+// getInstanceName extracts the instance name from the query parameter, defaults to "default"
+func getInstanceName(r *http.Request) string {
+	instance := r.URL.Query().Get("instance")
+	if instance == "" {
+		return crd.DefaultName
+	}
+	return instance
+}
+
+// getDetectedNamespace extracts the most common namespace from manifests
+func (h *Handler) getDetectedNamespace() string {
+	manifests := h.store.List()
+	return detectNamespaceFromManifests(manifests)
+}
+
 // GetParameters retrieves the current deployment parameters
 func (h *Handler) GetParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
+	// Get instance name from query parameter
+	instanceName := getInstanceName(r)
+	
 	// Detect namespace from manifests
-	manifests := h.store.List()
-	detectedNamespace := detectNamespaceFromManifests(manifests)
+	detectedNamespace := h.getDetectedNamespace()
 	if detectedNamespace == "" {
 		detectedNamespace = "default"
 	}
 
-	spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, detectedNamespace)
+	spec, err := h.parameterClient.GetSpec(ctx, instanceName, detectedNamespace)
 	if err != nil || spec == nil || len(spec) == 0 {
 		// Fallback to default namespace
 		if detectedNamespace != "default" {
@@ -64,9 +82,11 @@ func (h *Handler) GetParameters(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
+	// Get instance name from query parameter
+	instanceName := getInstanceName(r)
+	
 	// Detect namespace from manifests
-	manifests := h.store.List()
-	detectedNamespace := detectNamespaceFromManifests(manifests)
+	detectedNamespace := h.getDetectedNamespace()
 	if detectedNamespace == "" {
 		detectedNamespace = "default"
 	}
@@ -79,7 +99,7 @@ func (h *Handler) UpdateParameters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get existing parameters to check if it exists
-	params, err := h.parameterClient.Get(ctx, crd.DefaultName, detectedNamespace)
+	params, err := h.parameterClient.Get(ctx, instanceName, detectedNamespace)
 	if err != nil {
 		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_parameters_failed", err.Error(), nil)
 		return
@@ -87,13 +107,13 @@ func (h *Handler) UpdateParameters(w http.ResponseWriter, r *http.Request) {
 
 	if params == nil {
 		// Create new
-		if err := h.parameterClient.CreateWithSpec(ctx, crd.DefaultName, detectedNamespace, spec); err != nil {
+		if err := h.parameterClient.CreateWithSpec(ctx, instanceName, detectedNamespace, spec); err != nil {
 			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "create_parameters_failed", err.Error(), nil)
 			return
 		}
 	} else {
 		// Update existing
-		if err := h.parameterClient.UpdateSpec(ctx, crd.DefaultName, detectedNamespace, spec); err != nil {
+		if err := h.parameterClient.UpdateSpec(ctx, instanceName, detectedNamespace, spec); err != nil {
 			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "update_parameters_failed", err.Error(), nil)
 			return
 		}
@@ -107,9 +127,11 @@ func (h *Handler) GetServiceParameters(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	serviceName := chi.URLParam(r, "service")
 	
+	// Get instance name from query parameter
+	instanceName := getInstanceName(r)
+	
 	// Detect namespace from manifests
-	manifests := h.store.List()
-	detectedNamespace := detectNamespaceFromManifests(manifests)
+	detectedNamespace := h.getDetectedNamespace()
 	if detectedNamespace == "" {
 		detectedNamespace = "default"
 	}
@@ -119,11 +141,11 @@ func (h *Handler) GetServiceParameters(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, detectedNamespace)
+	spec, err := h.parameterClient.GetSpec(ctx, instanceName, detectedNamespace)
 	if err != nil || spec == nil || len(spec) == 0 {
 		// Fallback to default namespace
 		if detectedNamespace != "default" {
-			spec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
+			spec, err = h.parameterClient.GetSpec(ctx, instanceName, "default")
 		}
 		if err != nil {
 			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "get_service_parameters_failed", err.Error(), nil)
@@ -151,9 +173,11 @@ func int32Ptr(i int32) *int32 {
 func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
+	// Get instance name from query parameter
+	instanceName := getInstanceName(r)
+	
 	// Detect namespace from manifests
-	manifests := h.store.List()
-	detectedNamespace := detectNamespaceFromManifests(manifests)
+	detectedNamespace := h.getDetectedNamespace()
 	if detectedNamespace == "" {
 		detectedNamespace = "default"
 	}
@@ -172,11 +196,11 @@ func (h *Handler) GetServiceValues(w http.ResponseWriter, r *http.Request) {
 		var merged map[string]interface{}
 		
 		// Try to get spec, but don't fail if cluster is unavailable
-		spec, err := h.parameterClient.GetSpec(ctx, crd.DefaultName, detectedNamespace)
+		spec, err := h.parameterClient.GetSpec(ctx, instanceName, detectedNamespace)
 		if err != nil || spec == nil || len(spec) == 0 {
 			// Fallback to default namespace
 			if detectedNamespace != "default" {
-				spec, err = h.parameterClient.GetSpec(ctx, crd.DefaultName, "default")
+				spec, err = h.parameterClient.GetSpec(ctx, instanceName, "default")
 			}
 		}
 		if err == nil && spec != nil {
@@ -324,6 +348,184 @@ func (h *Handler) GetParametersSchema(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	WriteJSONResponse(w, h.logger, http.StatusOK, specSchema)
+}
+
+// ListParameterInstances lists all parameter instances in the namespace
+func (h *Handler) ListParameterInstances(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	// Detect namespace from manifests
+	detectedNamespace := h.getDetectedNamespace()
+	if detectedNamespace == "" {
+		detectedNamespace = "default"
+	}
+	
+	// List all instances
+	instances, err := h.parameterClient.List(ctx, detectedNamespace)
+	if err != nil {
+		// If not found in detected namespace, try default namespace
+		if detectedNamespace != "default" {
+			instances, err = h.parameterClient.List(ctx, "default")
+		}
+		if err != nil {
+			h.logger.Error(err, "failed to list parameter instances")
+			WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "list_instances_failed", err.Error(), nil)
+			return
+		}
+	}
+	
+	// Extract instance names
+	instanceNames := make([]string, 0, len(instances))
+	for _, instance := range instances {
+		instanceNames = append(instanceNames, instance.Name)
+	}
+	
+	// Sort for consistent ordering
+	sort.Strings(instanceNames)
+	
+	WriteJSONResponse(w, h.logger, http.StatusOK, instanceNames)
+}
+
+// CreateParameterInstance creates a new parameter instance with auto-generated name
+func (h *Handler) CreateParameterInstance(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	// Detect namespace from manifests
+	detectedNamespace := h.getDetectedNamespace()
+	if detectedNamespace == "" {
+		detectedNamespace = "default"
+	}
+	
+	// List existing instances to find next available name
+	existingInstances, err := h.parameterClient.List(ctx, detectedNamespace)
+	if err != nil {
+		// If not found in detected namespace, try default namespace
+		if detectedNamespace != "default" {
+			existingInstances, err = h.parameterClient.List(ctx, "default")
+			if err == nil {
+				detectedNamespace = "default"
+			}
+		}
+		if err != nil {
+			h.logger.Error(err, "failed to list existing instances, starting with config-1")
+			existingInstances = []crd.DeploymentParameters{}
+		}
+	}
+	
+	// Build set of existing instance names
+	existingNames := make(map[string]bool)
+	for _, instance := range existingInstances {
+		existingNames[instance.Name] = true
+	}
+	
+	// Generate next available name (config-1, config-2, etc.)
+	newInstanceName := ""
+	for i := 1; i <= 1000; i++ {
+		candidateName := fmt.Sprintf("config-%d", i)
+		if !existingNames[candidateName] {
+			newInstanceName = candidateName
+			break
+		}
+	}
+	
+	if newInstanceName == "" {
+		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "name_generation_failed", "Could not generate a unique instance name", nil)
+		return
+	}
+	
+	// Validate name follows Kubernetes resource name rules
+	if !isValidKubernetesName(newInstanceName) {
+		WriteErrorResponse(w, h.logger, http.StatusBadRequest, "invalid_name", "Generated name does not follow Kubernetes naming rules", nil)
+		return
+	}
+	
+	// Try to copy from "default" instance if it exists, otherwise create empty
+	var spec map[string]interface{}
+	defaultInstance, err := h.parameterClient.Get(ctx, crd.DefaultName, detectedNamespace)
+	if err == nil && defaultInstance != nil && defaultInstance.Spec != nil {
+		// Deep copy the spec from default
+		spec = deepCopySpecMap(defaultInstance.Spec)
+	} else {
+		// Create empty spec with default structure
+		spec = map[string]interface{}{
+			"global": map[string]interface{}{
+				"namespace":  detectedNamespace,
+				"namePrefix": "",
+				"replicas":   int32(1),
+			},
+			"services": make(map[string]interface{}),
+		}
+	}
+	
+	// Create the new instance
+	if err := h.parameterClient.CreateWithSpec(ctx, newInstanceName, detectedNamespace, spec); err != nil {
+		h.logger.Error(err, "failed to create parameter instance", "name", newInstanceName)
+		WriteErrorResponse(w, h.logger, http.StatusInternalServerError, "create_instance_failed", err.Error(), nil)
+		return
+	}
+	
+	WriteJSONResponse(w, h.logger, http.StatusOK, map[string]string{
+		"name":      newInstanceName,
+		"namespace": detectedNamespace,
+		"message":   fmt.Sprintf("Created parameter instance: %s", newInstanceName),
+	})
+}
+
+// isValidKubernetesName validates that a name follows Kubernetes resource naming rules
+// Names must be lowercase alphanumeric characters or '-', and must start and end with alphanumeric
+func isValidKubernetesName(name string) bool {
+	if len(name) == 0 || len(name) > 253 {
+		return false
+	}
+	
+	for i, r := range name {
+		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-') {
+			return false
+		}
+		// Must start and end with alphanumeric
+		if (i == 0 || i == len(name)-1) && (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+			return false
+		}
+	}
+	
+	return true
+}
+
+// deepCopySpecMap creates a deep copy of a DeploymentParametersSpec map
+func deepCopySpecMap(src crd.DeploymentParametersSpec) map[string]interface{} {
+	return deepCopyMapInterface(src)
+}
+
+// deepCopyMapInterface creates a deep copy of a map[string]interface{}
+func deepCopyMapInterface(src map[string]interface{}) map[string]interface{} {
+	dst := make(map[string]interface{})
+	for k, v := range src {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			dst[k] = deepCopyMapInterface(val)
+		case []interface{}:
+			dst[k] = deepCopySliceInterface(val)
+		default:
+			dst[k] = v
+		}
+	}
+	return dst
+}
+
+// deepCopySliceInterface creates a deep copy of a []interface{}
+func deepCopySliceInterface(src []interface{}) []interface{} {
+	dst := make([]interface{}, len(src))
+	for i, v := range src {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			dst[i] = deepCopyMapInterface(val)
+		case []interface{}:
+			dst[i] = deepCopySliceInterface(val)
+		default:
+			dst[i] = v
+		}
+	}
+	return dst
 }
 
 // checkSchemaHasDescriptions checks if a schema has any descriptions

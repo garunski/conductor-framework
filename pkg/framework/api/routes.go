@@ -76,6 +76,8 @@ func (h *Handler) SetupRoutes() *chi.Mux {
 		r.Get("/schema", h.GetParametersSchema)
 		r.Get("/values", h.GetServiceValues)
 		r.Get("/{service}", h.GetServiceParameters)
+		r.Get("/instances", h.ListParameterInstances)
+		r.Post("/instances", h.CreateParameterInstance)
 	})
 
 	// Serve static files (JS, CSS, etc.)
