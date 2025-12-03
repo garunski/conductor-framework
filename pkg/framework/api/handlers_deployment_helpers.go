@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/garunski/conductor-framework/pkg/framework/reconciler"
@@ -119,17 +120,34 @@ func checkServiceInstalled(ctx context.Context, serviceName string, manifests ma
 }
 
 // getServiceInstallationStatus returns a map of service name -> installation status
+// Optimized to check services in parallel for better performance
 func getServiceInstallationStatus(ctx context.Context, services []string, manifests map[string][]byte, rec reconciler.Reconciler) map[string]bool {
 	statusMap := make(map[string]bool)
+	if len(services) == 0 {
+		return statusMap
+	}
 
 	// Create a context with timeout
 	checkCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
+	// Use a mutex to protect the statusMap
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	// Check all services in parallel
 	for _, service := range services {
-		statusMap[service] = checkServiceInstalled(checkCtx, service, manifests, rec)
+		wg.Add(1)
+		go func(svc string) {
+			defer wg.Done()
+			installed := checkServiceInstalled(checkCtx, svc, manifests, rec)
+			mu.Lock()
+			statusMap[svc] = installed
+			mu.Unlock()
+		}(service)
 	}
 
+	wg.Wait()
 	return statusMap
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -55,60 +56,84 @@ func (h *Handler) getServiceNames() []string {
 
 // getServiceValuesMap returns merged/default and deployed values for all services
 // Similar to GetServiceValues but returns a map instead of writing HTTP response
+// Optimized to fetch service values in parallel for better performance
 func (h *Handler) getServiceValuesMap(ctx context.Context, services []string, defaultNamespace string, instanceName string) map[string]map[string]interface{} {
 	result := make(map[string]map[string]interface{})
+	if len(services) == 0 {
+		return result
+	}
+
 	clientset := h.reconciler.GetClientset()
 	manifests := h.store.List()
 
+	// Get spec once for all services (shared across goroutines)
+	var spec map[string]interface{}
+	var specErr error
+	spec, specErr = h.parameterClient.GetSpec(ctx, instanceName, defaultNamespace)
+	if specErr != nil || spec == nil {
+		spec = nil
+	}
+
+	// Use a mutex to protect the result map
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	// Process all services in parallel
 	for _, serviceName := range services {
-		serviceData := make(map[string]interface{})
+		wg.Add(1)
+		go func(svc string) {
+			defer wg.Done()
+			serviceData := make(map[string]interface{})
 
-		// Get merged/default values
-		var merged map[string]interface{}
+			// Get merged/default values
+			var merged map[string]interface{}
 
-		// Try to get spec, but don't fail if cluster is unavailable
-		spec, err := h.parameterClient.GetSpec(ctx, instanceName, defaultNamespace)
-		if err == nil && spec != nil {
-			// Merge global and service-specific parameters
-			merged = make(map[string]interface{})
+			// Use the shared spec if available
+			if spec != nil {
+				// Merge global and service-specific parameters
+				merged = make(map[string]interface{})
 
-			// Start with global defaults
-			if global, ok := spec["global"].(map[string]interface{}); ok {
-				for k, v := range global {
-					merged[k] = v
-				}
-			}
-
-			// Apply service-specific overrides
-			if services, ok := spec["services"].(map[string]interface{}); ok {
-				if service, ok := services[serviceName].(map[string]interface{}); ok {
-					for k, v := range service {
+				// Start with global defaults
+				if global, ok := spec["global"].(map[string]interface{}); ok {
+					for k, v := range global {
 						merged[k] = v
 					}
 				}
+
+				// Apply service-specific overrides
+				if services, ok := spec["services"].(map[string]interface{}); ok {
+					if service, ok := services[svc].(map[string]interface{}); ok {
+						for k, v := range service {
+							merged[k] = v
+						}
+					}
+				}
 			}
-		}
 
-		// Fall back to empty map if no merged params
-		if merged == nil || len(merged) == 0 {
-			merged = make(map[string]interface{})
-		}
-
-		serviceData["merged"] = merged
-
-		// Get actual deployed values from Kubernetes (only if cluster is available)
-		if clientset != nil {
-			deployCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-			deployed := getDeployedValues(deployCtx, clientset, serviceName, defaultNamespace, manifests)
-			cancel()
-			if deployed != nil {
-				serviceData["deployed"] = deployed
+			// Fall back to empty map if no merged params
+			if merged == nil || len(merged) == 0 {
+				merged = make(map[string]interface{})
 			}
-		}
 
-		result[serviceName] = serviceData
+			serviceData["merged"] = merged
+
+			// Get actual deployed values from Kubernetes (only if cluster is available)
+			if clientset != nil {
+				deployCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				deployed := getDeployedValues(deployCtx, clientset, svc, defaultNamespace, manifests)
+				cancel()
+				if deployed != nil {
+					serviceData["deployed"] = deployed
+				}
+			}
+
+			mu.Lock()
+			result[svc] = serviceData
+			mu.Unlock()
+		}(serviceName)
 	}
 
+	wg.Wait()
 	return result
 }
 
