@@ -193,7 +193,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 
 	// Wait for shutdown
-	if err := srv.WaitForShutdown(); err != nil {
+	if err := srv.WaitForShutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown error: %w", err)
 	}
 

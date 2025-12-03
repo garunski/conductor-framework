@@ -28,13 +28,18 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) WaitForShutdown() error {
+func (s *Server) WaitForShutdown(ctx context.Context) error {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
-
-	s.logger.Info("Shutting down...")
-	return s.Shutdown(context.Background())
+	
+	select {
+	case <-sigChan:
+		s.logger.Info("Shutting down...")
+		return s.Shutdown(context.Background())
+	case <-ctx.Done():
+		s.logger.Info("Shutting down due to context cancellation...")
+		return s.Shutdown(ctx)
+	}
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
