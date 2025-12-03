@@ -156,3 +156,108 @@ func TestNewDBCreatesDirectory(t *testing.T) {
 	}
 }
 
+func TestDBBatchSet(t *testing.T) {
+	db, err := NewTestDB(t)
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+
+	items := map[string][]byte{
+		"key1": []byte("value1"),
+		"key2": []byte("value2"),
+		"key3": []byte("value3"),
+	}
+
+	err = db.BatchSet(items)
+	if err != nil {
+		t.Fatalf("BatchSet() error = %v", err)
+	}
+
+	// Verify all items were set
+	for key, expectedValue := range items {
+		val, err := db.Get(key)
+		if err != nil {
+			t.Fatalf("failed to get key %s: %v", key, err)
+		}
+		if string(val) != string(expectedValue) {
+			t.Errorf("key %s: expected %s, got %s", key, string(expectedValue), string(val))
+		}
+	}
+}
+
+func TestDBBatchSet_Empty(t *testing.T) {
+	db, err := NewTestDB(t)
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+
+	err = db.BatchSet(map[string][]byte{})
+	if err != nil {
+		t.Fatalf("BatchSet() with empty map should not error, got: %v", err)
+	}
+}
+
+func TestDBBatchDelete(t *testing.T) {
+	db, err := NewTestDB(t)
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+
+	// Set up test data
+	testKeys := []string{"key1", "key2", "key3"}
+	for _, key := range testKeys {
+		if err := db.Set(key, []byte("value")); err != nil {
+			t.Fatalf("failed to set key %s: %v", key, err)
+		}
+	}
+
+	// Delete keys
+	keysToDelete := []string{"key1", "key3"}
+	err = db.BatchDelete(keysToDelete)
+	if err != nil {
+		t.Fatalf("BatchDelete() error = %v", err)
+	}
+
+	// Verify deleted keys are gone
+	for _, key := range keysToDelete {
+		_, err := db.Get(key)
+		if err == nil {
+			t.Errorf("key %s should have been deleted", key)
+		}
+	}
+
+	// Verify remaining key still exists
+	val, err := db.Get("key2")
+	if err != nil {
+		t.Fatalf("key2 should still exist: %v", err)
+	}
+	if string(val) != "value" {
+		t.Errorf("key2 value = %s, want value", string(val))
+	}
+}
+
+func TestDBBatchDelete_Empty(t *testing.T) {
+	db, err := NewTestDB(t)
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+
+	err = db.BatchDelete([]string{})
+	if err != nil {
+		t.Fatalf("BatchDelete() with empty slice should not error, got: %v", err)
+	}
+}
+
+func TestDBBatchDelete_NonexistentKeys(t *testing.T) {
+	db, err := NewTestDB(t)
+	if err != nil {
+		t.Fatalf("failed to create test DB: %v", err)
+	}
+
+	// BatchDelete should not error on nonexistent keys
+	err = db.BatchDelete([]string{"nonexistent1", "nonexistent2"})
+	if err != nil {
+		t.Fatalf("BatchDelete() with nonexistent keys should not error, got: %v", err)
+	}
+}
+
